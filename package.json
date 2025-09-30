@@ -1,15 +1,17 @@
 {
   "name": "getsmaht",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "30-Day Problem-Solving Tracker",
+  "author": "Bryan <bryan@example.com>",
   "main": "main.js",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "electron": "ELECTRON_START_URL=http://localhost:5173 electron .",
+    "electron": "ELECTRON_START_URL=http://localhost:5173 npx electron .",
     "build": "vite build",
-    "lint": "eslint .",
     "preview": "vite preview",
+    "lint": "eslint .",
     "dist": "electron-builder"
   },
   "build": {
@@ -25,7 +27,8 @@
       "buildResources": "build"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "forceCodeSigning": false
     }
   },
   "dependencies": {

@@ -1,3 +1,4 @@
+// main.js
 import { app, BrowserWindow } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -15,10 +16,11 @@ function createWindow() {
   });
 
   if (process.env.ELECTRON_START_URL) {
-    // Dev mode
+    // Dev mode: Vite dev server
     win.loadURL(process.env.ELECTRON_START_URL);
+    win.webContents.openDevTools(); // optional: DevTools for debugging
   } else {
-    // Production: absolute path
+    // Production: load built React app from dist with relative paths
     const indexHtml = path.join(__dirname, "dist", "index.html");
     win.loadFile(indexHtml);
   }
