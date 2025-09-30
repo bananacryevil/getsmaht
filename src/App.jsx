@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import ReadingModal from './components/ReadingModal';
+import { parseReading } from './utils/readingMapper';
 
 // 30-Day Curriculum Tracker
 // Single-file React component (default export). Tailwind classes used for styling.
@@ -7,6 +9,7 @@ import React, { useEffect, useState } from "react";
 // - Mark days complete, add notes, date completed
 // - Progress bar, filter by week, search
 // - Persisted in localStorage; import/export JSON
+// - Built-in PDF reader for readings
 // Usage:
 // - Create a new React + Vite project, install Tailwind, then replace src/App.jsx
 // - Or paste this into an environment that supports Tailwind + React
@@ -67,6 +70,8 @@ export default function App() {
   });
   const [filterWeek, setFilterWeek] = useState("all");
   const [search, setSearch] = useState("");
+  const [currentReading, setCurrentReading] = useState(null);
+  const [isReadingModalOpen, setIsReadingModalOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -132,6 +137,44 @@ export default function App() {
   const completedCount = items.filter(i => i.completed).length;
   const progress = Math.round((completedCount / items.length) * 100);
 
+  const openReading = (readingText) => {
+    const parsedReading = parseReading(readingText);
+    if (parsedReading) {
+      setCurrentReading(parsedReading);
+      setIsReadingModalOpen(true);
+    } else {
+      alert('PDF not found for this reading. Please check the reading reference.');
+    }
+  };
+
+  const closeReadingModal = () => {
+    setIsReadingModalOpen(false);
+    setCurrentReading(null);
+  };
+
+  // Handle keyboard shortcuts and body scroll lock
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.key === 'Escape' && isReadingModalOpen) {
+        closeReadingModal();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    
+    // Lock body scroll when modal is open
+    if (isReadingModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyPress);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isReadingModalOpen]);
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-5xl mx-auto bg-white shadow-md rounded-xl p-6">
@@ -176,7 +219,23 @@ export default function App() {
                       <div className="text-sm text-gray-500">Day {it.day}</div>
                       <div className="font-semibold">{it.title}</div>
                       <div className="text-sm text-gray-700 mt-2">
-                        <strong>Readings:</strong> {it.readings.length ? it.readings.join("; ") : "—"}
+                        <strong>Readings:</strong> 
+                        {it.readings.length ? (
+                          <span className="ml-1">
+                            {it.readings.map((reading, idx) => (
+                              <span key={idx}>
+                                <button
+                                  onClick={() => openReading(reading)}
+                                  className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                  title="Click to open PDF reader"
+                                >
+                                  {reading}
+                                </button>
+                                {idx < it.readings.length - 1 && "; "}
+                              </span>
+                            ))}
+                          </span>
+                        ) : "—"}
                       </div>
                       <div className="text-sm text-gray-700 mt-1">
                         <strong>Exercises:</strong>
@@ -253,6 +312,13 @@ export default function App() {
           This app stores progress in your browser's localStorage. To keep or move data, export JSON.
         </footer>
       </div>
+
+      {/* Reading Modal */}
+      <ReadingModal 
+        isOpen={isReadingModalOpen}
+        onClose={closeReadingModal}
+        reading={currentReading}
+      />
     </div>
   );
 }
