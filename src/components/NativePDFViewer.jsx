@@ -77,7 +77,7 @@ export default function NativePDFViewer({
   const [numPages, setNumPages] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [currentScale, setCurrentScale] = useState(1);
-  const [tocOpen, setTocOpen] = useState(true);
+  const [tocOpen, setTocOpen] = useState(false);
   const [autoNavigationFinished, setAutoNavigationFinished] = useState(false);
   const [activeOutlineId, setActiveOutlineId] = useState(null);
   const [outlineLoaded, setOutlineLoaded] = useState(false);
@@ -126,7 +126,7 @@ export default function NativePDFViewer({
     const handlePageChange = ({ pageNumber }) => setCurrentPage(pageNumber);
     const handlePagesInit = () => {
       if (!pdfViewerRef.current) return;
-      pdfViewerRef.current.currentScaleValue = 'page-width';
+      pdfViewerRef.current.currentScaleValue = 'page-actual';
       setCurrentScale(pdfViewerRef.current.currentScale);
     };
     const handleScaleChange = ({ scale }) => setCurrentScale(scale);

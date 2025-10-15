@@ -106,7 +106,7 @@ export default function MarkdownNotesEditor({
           value={safeValue}
           onChange={handleChange}
           height={height}
-          preview="live"
+          preview="edit"
           visibleDragbar
           textareaProps={textareaProps}
           previewOptions={{ remarkPlugins: [remarkGfm] }}

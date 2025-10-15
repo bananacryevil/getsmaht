@@ -8,8 +8,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "electron": "ELECTRON_START_URL=http://localhost:5173 npx electron .",
-    "build": "vite build",
+    "electron": "ELECTRON_START_URL=http://localhost:5173",
+    "build": "vite build && npx electron .",
     "preview": "vite preview",
     "lint": "eslint .",
     "dist": "electron-builder"

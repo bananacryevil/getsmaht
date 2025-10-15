@@ -1,15 +1,20 @@
 import React from 'react';
 import NativePDFViewer from './NativePDFViewer';
-import MarkdownNotesEditor from './MarkdownNotesEditor';
 
 export default function ReadingModal({
   isOpen,
   onClose,
   reading,
-  notesProps = null,
-  onPopOutNotes
+  notes,
+  onNotesChange
 }) {
   if (!isOpen || !reading) return null;
+
+  const handleOpenNotes = () => {
+    if (window.electronAPI?.notes?.openWindow) {
+      window.electronAPI.notes.openWindow(reading.dayNumber, reading.title);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -37,9 +42,9 @@ export default function ReadingModal({
             </button>
           </div>
 
-          {/* PDF Reader */}
-          <div className="flex-1 flex flex-col lg:flex-row" style={{ minHeight: 0 }}>
-            <div className="flex-[2] min-h-0 border-b lg:border-b-0 lg:border-r border-slate-200">
+          {/* PDF Reader - Full Width */}
+          <div className="flex-1 flex" style={{ minHeight: 0 }}>
+            <div className="flex-1 min-h-0">
               <NativePDFViewer
                 pdfFile={reading.pdfPath}
                 reference={reading.reference}
@@ -48,30 +53,13 @@ export default function ReadingModal({
                 className="h-full"
               />
             </div>
-
-            {notesProps && (
-              <div className="flex-[1] min-h-[320px] max-h-full overflow-y-auto p-4 bg-slate-50">
-                <MarkdownNotesEditor
-                  {...notesProps}
-                  height={notesProps?.height ?? 520}
-                  className="h-full"
-                  bodyClassName="bg-white"
-                  description="Draft insights while you read. Updates save automatically."
-                  actionArea={
-                    onPopOutNotes ? (
-                      <button
-                        type="button"
-                        onClick={() => onPopOutNotes(notesProps.activeDay)}
-                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
-                        disabled={notesProps.activeDay == null}
-                      >
-                        Pop Out
-                      </button>
-                    ) : null
-                  }
-                />
-              </div>
-            )}
+            <button
+              onClick={handleOpenNotes}
+              className="fixed right-4 top-24 z-50 px-3 py-2 bg-blue-600 text-white rounded-l-md shadow-lg hover:bg-blue-700 transition-colors font-semibold text-sm"
+              title="Open notes in separate window"
+            >
+              Notes
+            </button>
           </div>
         </div>
       </div>
