@@ -35,6 +35,7 @@ export default function App() {
   const [isReadingModalOpen, setIsReadingModalOpen] = useState(false);
   const [currentExercise, setCurrentExercise] = useState(null);
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
+  const [expandedReadings, setExpandedReadings] = useState(new Set());
 
   const initialScrollDoneRef = useRef(false);
   const [pendingScroll, setPendingScroll] = useState(false);
@@ -184,7 +185,7 @@ export default function App() {
   const completedCount = items.filter(i => i.completed).length;
   const progress = Math.round((completedCount / items.length) * 100);
 
-  const openReading = (readingText) => {
+  const openReading = (readingText, day, readingIndex) => {
     const parsedReading = parseReading(readingText);
     if (parsedReading) {
       if (parsedReading.isExternalLink) {
@@ -196,7 +197,17 @@ export default function App() {
         setIsReadingModalOpen(true);
       }
     } else {
-      alert('Resource not found for this reading. Please check the reading reference.');
+      // This is a supplemental reading or other text - toggle expansion
+      const readingKey = `${day}-${readingIndex}`;
+      setExpandedReadings(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(readingKey)) {
+          newSet.delete(readingKey);
+        } else {
+          newSet.add(readingKey);
+        }
+        return newSet;
+      });
     }
   };
 
@@ -322,6 +333,7 @@ export default function App() {
             <option value="2">Week 2 - Recursion & Data</option>
             <option value="3">Week 3 - Algorithms</option>
             <option value="4">Week 4 - Mastery</option>
+            <option value="5">Week 5 - Advanced Topics</option>
           </select>
 
           <div className="flex-1 relative">
@@ -348,7 +360,8 @@ export default function App() {
                 1: 'from-blue-500 to-cyan-500',
                 2: 'from-purple-500 to-pink-500',
                 3: 'from-orange-500 to-red-500',
-                4: 'from-emerald-500 to-teal-500'
+                4: 'from-emerald-500 to-teal-500',
+                5: 'from-indigo-500 to-purple-500'
               };
               
               return (
@@ -404,25 +417,61 @@ export default function App() {
                     <div>
                       <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">📖 Readings</h4>
                       <div className="space-y-2">
-                        {it.readings.map((reading, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => openReading(reading)}
-                            className="w-full text-left px-4 py-2.5 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-xl transition-all group/reading"
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">
-                                {idx + 1}
-                              </span>
-                              <span className="text-sm text-slate-700 group-hover/reading:text-blue-700 font-medium flex-1">
-                                {reading.length > 60 ? `${reading.substring(0, 60)}...` : reading}
-                              </span>
-                              <svg className="w-4 h-4 text-slate-400 group-hover/reading:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                            </div>
-                          </button>
-                        ))}
+                        {it.readings.map((reading, idx) => {
+                          const readingKey = `${it.day}-${idx}`;
+                          const isExpanded = expandedReadings.has(readingKey);
+                          const parsedReading = parseReading(reading);
+                          const isSupplemental = !parsedReading;
+                          const shouldTruncate = !isExpanded && reading.length > 60;
+                          
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => openReading(reading, it.day, idx)}
+                              className={`w-full text-left px-4 py-2.5 border rounded-xl transition-all group/reading ${
+                                isSupplemental 
+                                  ? 'bg-amber-50 hover:bg-amber-100 border-amber-200 hover:border-amber-300' 
+                                  : 'bg-slate-50 hover:bg-blue-50 border-slate-200 hover:border-blue-300'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5 ${
+                                  isSupplemental
+                                    ? 'bg-amber-100 text-amber-700'
+                                    : 'bg-blue-100 text-blue-600'
+                                }`}>
+                                  {idx + 1}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <span className={`text-sm font-medium block ${
+                                    isSupplemental
+                                      ? 'text-amber-900 group-hover/reading:text-amber-950'
+                                      : 'text-slate-700 group-hover/reading:text-blue-700'
+                                  }`}>
+                                    {shouldTruncate ? `${reading.substring(0, 60)}...` : reading}
+                                  </span>
+                                  {isSupplemental && (
+                                    <span className="text-xs text-amber-600 mt-1 block">
+                                      {isExpanded ? 'Click to collapse' : 'Click to expand'}
+                                    </span>
+                                  )}
+                                </div>
+                                <svg className={`w-4 h-4 flex-shrink-0 mt-1 transition-all ${
+                                  isSupplemental
+                                    ? 'text-amber-500 group-hover/reading:text-amber-600'
+                                    : 'text-slate-400 group-hover/reading:text-blue-500'
+                                } ${isExpanded && isSupplemental ? 'rotate-90' : ''}`} 
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  {isSupplemental ? (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isExpanded ? "M19 9l-7 7-7-7" : "M9 5l7 7-7 7"} />
+                                  ) : (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  )}
+                                </svg>
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 

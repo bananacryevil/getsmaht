@@ -1,5 +1,5 @@
 import React from 'react';
-import PDFReader from './PDFReader';
+import NativePDFViewer from './NativePDFViewer';
 
 export default function ReadingModal({ isOpen, onClose, reading }) {
   if (!isOpen || !reading) return null;
@@ -25,14 +25,12 @@ export default function ReadingModal({ isOpen, onClose, reading }) {
 
           {/* PDF Reader */}
           <div className="flex-1" style={{ minHeight: 0 }}>
-            <PDFReader
+            <NativePDFViewer
               pdfFile={reading.pdfPath}
-              initialPage={reading.initialPage || 1}
+              reference={reading.reference}
+              outlineHints={reading.outlineHints || []}
               initialPageLabel={reading.startLabel || null}
-              keywordHints={reading.keywordHints || []}
-              onClose={onClose}
               className="h-full"
-              readingReference={reading.reference}
             />
           </div>
         </div>

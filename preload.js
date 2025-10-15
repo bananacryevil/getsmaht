@@ -1,2 +1,5 @@
-// preload.js
-// (optional for now – safe bridge between Electron and frontend)
+import { contextBridge, ipcRenderer } from 'electron';
+
+contextBridge.exposeInMainWorld('electronAPI', {
+	readFile: async (fileUrl) => ipcRenderer.invoke('pdf:read-file', fileUrl)
+});

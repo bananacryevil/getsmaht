@@ -63,13 +63,13 @@ export function parseReading(readingText) {
   if (text.includes('how to solve it')) {
     const book = BOOKS['how-to-solve-it'];
 
-    const createResult = ({ title = book.title, keywordHints = [] } = {}) => (
+    const createResult = ({ title = book.title, outlineHints = [] } = {}) => (
       withPageMetadata({
         bookId: 'how-to-solve-it',
         title,
         pdfPath: book.pdfPath,
         reference: readingText,
-        keywordHints
+        outlineHints
       }, readingText)
     );
     
@@ -77,28 +77,28 @@ export function parseReading(readingText) {
     if (text.includes('introduction') && text.includes('understanding')) {
       return createResult({
         title: `${book.title} - Introduction & Understanding the Problem`,
-        keywordHints: ['Introduction', 'Understanding the Problem', 'Part I']
+        outlineHints: ['Preface', 'Introduction']
       });
     }
     
     if (text.includes('devising') && text.includes('plan')) {
       return createResult({
         title: `${book.title} - Devising a Plan`,
-        keywordHints: ['Devising a Plan']
+        outlineHints: ['Devising a Plan']
       });
     }
     
     if (text.includes('carrying out') && text.includes('plan')) {
       return createResult({
         title: `${book.title} - Carrying Out the Plan`,
-        keywordHints: ['Carrying Out the Plan']
+        outlineHints: ['Carrying Out the Plan']
       });
     }
     
     if (text.includes('looking back')) {
       return createResult({
         title: `${book.title} - Looking Back`,
-        keywordHints: ['Looking Back']
+        outlineHints: ['Looking Back']
       });
     }
     
@@ -112,7 +112,7 @@ export function parseReading(readingText) {
 
     // Default to introduction
     return createResult({
-      keywordHints: ['Introduction']
+      outlineHints: ['Introduction']
     });
   }
 
@@ -134,13 +134,13 @@ export function parseReading(readingText) {
       12: 'Tuples'
     };
 
-    const createResult = ({ title = `${book.title}`, keywordHints = [] } = {}) => (
+    const createResult = ({ title = `${book.title}`, outlineHints = [] } = {}) => (
       withPageMetadata({
         bookId: 'think-python',
         title,
         pdfPath: book.pdfPath,
         reference: readingText,
-        keywordHints
+        outlineHints
       }, readingText)
     );
     
@@ -154,7 +154,7 @@ export function parseReading(readingText) {
         title: chapterTitle
           ? `${book.title} - Chapter ${chapterNum}: ${chapterTitle}`
           : `${book.title} - Chapter ${chapterNum}`,
-        keywordHints: chapterTitle
+        outlineHints: chapterTitle
           ? [`Chapter ${chapterNum}`, chapterTitle]
           : [`Chapter ${chapterNum}`]
       });
@@ -163,7 +163,7 @@ export function parseReading(readingText) {
     // Default to chapter 1
     return createResult({
       title: `${book.title} - Chapter 1`,
-      keywordHints: ['Chapter 1', 'The Way of the Program']
+      outlineHints: ['Chapter 1', 'The Way of the Program']
     });
   }
 
@@ -183,13 +183,13 @@ export function parseReading(readingText) {
       10: ['K-nearest Neighbors', 'Chapter 10']
     };
 
-    const createResult = ({ title = `${book.title}`, keywordHints = [] } = {}) => (
+    const createResult = ({ title = `${book.title}`, outlineHints = [] } = {}) => (
       withPageMetadata({
         bookId: 'grokking-algorithms',
         title,
         pdfPath: book.pdfPath,
         reference: readingText,
-        keywordHints
+        outlineHints
       }, readingText)
     );
     
@@ -201,14 +201,14 @@ export function parseReading(readingText) {
 
       return createResult({
         title: `${book.title} - Chapter ${chapterNum}`,
-        keywordHints: topicHints
+        outlineHints: topicHints
       });
     }
 
     // Default to chapter 1
     return createResult({
       title: `${book.title} - Chapter 1`,
-      keywordHints: ['Chapter 1', 'Introduction to Algorithms']
+      outlineHints: ['Chapter 1', 'Introduction to Algorithms']
     });
   }
 
