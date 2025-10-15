@@ -1,8 +1,13 @@
 // Smart chapter detection utilities
-export const findBestMatchingChapter = async (pdfDocument, outline, readingReference) => {
-  if (!outline || !readingReference) return 1;
+export const findBestMatchingChapter = async (pdfDocument, outline, readingReference, keywordHints = []) => {
+  if (!outline) return 1;
 
-  const reference = readingReference.toLowerCase().trim();
+  const reference = (readingReference || '').toLowerCase().trim();
+  const normalizedHints = Array.isArray(keywordHints)
+    ? keywordHints
+        .map((hint) => (hint ? String(hint).toLowerCase().trim() : null))
+        .filter((hint) => hint && hint.length > 0)
+    : [];
   
   // Helper function to get page from destination
   const getPageFromDest = async (dest) => {
@@ -112,6 +117,18 @@ export const findBestMatchingChapter = async (pdfDocument, outline, readingRefer
       term.length > 2 && !['the', 'and', 'for', 'with'].includes(term)
     );
   }
+
+  if (normalizedHints.length > 0) {
+    searchTerms.push(...normalizedHints);
+  }
+
+  // Remove duplicates while preserving order
+  const seen = new Set();
+  searchTerms = searchTerms.filter((term) => {
+    if (seen.has(term)) return false;
+    seen.add(term);
+    return true;
+  });
 
   try {
     const matches = await searchOutlineItems(outline, searchTerms);

@@ -3,13 +3,14 @@ import { Document, Page } from 'react-pdf';
 import { pdfjs } from '../utils/pdfWorker';
 import PDFTableOfContents from './PDFTableOfContents';
 import { findBestMatchingChapter } from '../utils/chapterDetection';
+import { findPageByLabel, extractPageMarkers } from '../utils/pageResolver';
 import './PDFReader.css';
 
 // Import CSS for proper rendering (v7.7.3 compatible)
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 
-export default function PDFReader({ pdfFile, initialPage = 1, onClose, className = "", book = null, readingReference = "" }) {
+export default function PDFReader({ pdfFile, initialPage = 1, initialPageLabel = null, keywordHints = [], onClose, className = "", readingReference = "" }) {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(initialPage);
   const [scale, setScale] = useState(1.0);
@@ -27,21 +28,45 @@ export default function PDFReader({ pdfFile, initialPage = 1, onClose, className
   const containerRef = useRef(null);
   const pageRef = useRef(null);
 
+  useEffect(() => {
+    setPageNumber(initialPage);
+    setSmartPageDetected(false);
+    setLoading(true);
+    setError(null);
+  }, [pdfFile, initialPage, initialPageLabel, keywordHints]);
+
   const onDocumentLoadSuccess = useCallback(async (pdf) => {
     setNumPages(pdf.numPages);
     setPdfDocument(pdf);
-    
+
+    let resolvedByLabel = false;
+
     try {
-      // Get the PDF outline (bookmarks/table of contents)
+      const pageLabels = await pdf.getPageLabels();
+      const parsedMarkers = extractPageMarkers(readingReference || '');
+      const targetLabel = initialPageLabel || parsedMarkers?.startLabel;
+
+      if (pageLabels && targetLabel) {
+        const resolvedPage = findPageByLabel(pageLabels, targetLabel);
+        if (resolvedPage) {
+          setPageNumber(resolvedPage);
+          setSmartPageDetected(true);
+          resolvedByLabel = true;
+        }
+      }
+    } catch (err) {
+      console.warn('Page label resolution failed:', err);
+    }
+
+    try {
       const outline = await pdf.getOutline();
       if (outline) {
         setPdfOutline(outline);
-        
-        // Try to find the best matching chapter if we have a reading reference
-        if (readingReference && !smartPageDetected) {
+
+        if ((readingReference || keywordHints.length > 0) && !resolvedByLabel) {
           setTimeout(async () => {
             try {
-              const smartPage = await findBestMatchingChapter(pdf, outline, readingReference);
+              const smartPage = await findBestMatchingChapter(pdf, outline, readingReference, keywordHints);
               if (smartPage && smartPage > 1) {
                 console.log(`Smart navigation: Found chapter at page ${smartPage} for "${readingReference}"`);
                 setPageNumber(smartPage);
@@ -56,10 +81,10 @@ export default function PDFReader({ pdfFile, initialPage = 1, onClose, className
     } catch (err) {
       console.warn('Could not load PDF outline:', err);
     }
-    
+
     setLoading(false);
     setError(null);
-  }, [readingReference, initialPage, smartPageDetected]);
+  }, [readingReference, initialPageLabel, keywordHints]);
 
   const onDocumentLoadError = useCallback((error) => {
     setError(`Failed to load PDF: ${error.message}`);

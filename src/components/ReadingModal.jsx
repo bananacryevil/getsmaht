@@ -1,6 +1,5 @@
 import React from 'react';
 import PDFReader from './PDFReader';
-import { BOOKS } from '../utils/readingMapper';
 
 export default function ReadingModal({ isOpen, onClose, reading }) {
   if (!isOpen || !reading) return null;
@@ -28,10 +27,11 @@ export default function ReadingModal({ isOpen, onClose, reading }) {
           <div className="flex-1" style={{ minHeight: 0 }}>
             <PDFReader
               pdfFile={reading.pdfPath}
-              initialPage={reading.startPage || 1}
+              initialPage={reading.initialPage || 1}
+              initialPageLabel={reading.startLabel || null}
+              keywordHints={reading.keywordHints || []}
               onClose={onClose}
               className="h-full"
-              book={BOOKS[reading.bookId]}
               readingReference={reading.reference}
             />
           </div>
