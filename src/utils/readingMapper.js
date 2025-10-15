@@ -60,39 +60,80 @@ export const BOOKS = {
   }
 };
 
-// Parse reading string to extract book and chapter/page info
+// Parse reading string to extract book and chapter/page info or handle web links
 export function parseReading(readingText) {
   if (!readingText || typeof readingText !== 'string') return null;
 
   const text = readingText.toLowerCase().trim();
+  
+  // Handle web URLs - return them as external links
+  if (readingText.startsWith('http://') || readingText.startsWith('https://')) {
+    return {
+      isExternalLink: true,
+      url: readingText,
+      title: 'External Resource',
+      reference: readingText
+    };
+  }
 
   // Handle "How to Solve It" references
   if (text.includes('how to solve it')) {
     const book = BOOKS['how-to-solve-it'];
     
-    // Look for page ranges like "pp.1-34"
-    const pageMatch = text.match(/pp\.(\d+)-(\d+)/);
+    // Look for specific sections
+    if (text.includes('introduction') && text.includes('understanding')) {
+      return {
+        bookId: 'how-to-solve-it',
+        title: `${book.title} - Introduction & Understanding the Problem`,
+        pdfPath: book.pdfPath,
+        startPage: 9,  // Start at introduction
+        endPage: 25,   // Through understanding section
+        reference: readingText
+      };
+    }
+    
+    if (text.includes('devising') && text.includes('plan')) {
+      return {
+        bookId: 'how-to-solve-it',
+        title: `${book.title} - Devising a Plan`,
+        pdfPath: book.pdfPath,
+        startPage: 26,
+        endPage: 35,
+        reference: readingText
+      };
+    }
+    
+    if (text.includes('carrying out') && text.includes('plan')) {
+      return {
+        bookId: 'how-to-solve-it',
+        title: `${book.title} - Carrying Out the Plan`,
+        pdfPath: book.pdfPath,
+        startPage: 36,
+        endPage: 45,
+        reference: readingText
+      };
+    }
+    
+    if (text.includes('looking back')) {
+      return {
+        bookId: 'how-to-solve-it',
+        title: `${book.title} - Looking Back`,
+        pdfPath: book.pdfPath,
+        startPage: 46,
+        endPage: 50,
+        reference: readingText
+      };
+    }
+    
+    // Look for page ranges like "pp.1-34" or "pp. 9-25"
+    const pageMatch = text.match(/pp\.?\s*(\d+)-(\d+)/);
     if (pageMatch) {
-      // Map the reference pages to actual PDF pages
       const refStart = parseInt(pageMatch[1]);
       const refEnd = parseInt(pageMatch[2]);
       
-      // For "pp.1-34", map to introduction through understanding the problem
-      if (refStart === 1 && refEnd === 34) {
-        return {
-          bookId: 'how-to-solve-it',
-          title: book.title,
-          pdfPath: book.pdfPath,
-          startPage: 9,  // Start at introduction
-          endPage: 42,   // Through understanding section
-          reference: readingText
-        };
-      }
-      
-      // For other page ranges, use a more direct mapping
       return {
         bookId: 'how-to-solve-it',
-        title: book.title,
+        title: `${book.title} - Pages ${refStart}-${refEnd}`,
         pdfPath: book.pdfPath,
         startPage: refStart + 8,  // Adjust for PDF offset
         endPage: refEnd + 8,
@@ -115,28 +156,46 @@ export function parseReading(readingText) {
   if (text.includes('think python')) {
     const book = BOOKS['think-python'];
     
-    // Look for chapter references like "ch.2", "ch.3", etc.
-    const chapterMatch = text.match(/ch\.?(\d+)/);
+    // Look for chapter references like "ch. 2", "chapter 3", etc.
+    const chapterMatch = text.match(/ch\.?\s*(\d+)|chapter\s+(\d+)/);
     if (chapterMatch) {
-      const chapterNum = parseInt(chapterMatch[1]);
+      const chapterNum = parseInt(chapterMatch[1] || chapterMatch[2]);
+      
+      // Map chapters to approximate page ranges (these will be refined by PDF outline)
+      const chapterPages = {
+        1: { start: 11, end: 18 },
+        2: { start: 19, end: 30 },
+        3: { start: 31, end: 42 },
+        4: { start: 43, end: 54 },
+        5: { start: 55, end: 68 },
+        6: { start: 69, end: 82 },
+        7: { start: 83, end: 96 },
+        8: { start: 97, end: 112 },
+        9: { start: 113, end: 128 },
+        10: { start: 129, end: 144 },
+        11: { start: 145, end: 160 },
+        12: { start: 161, end: 176 }
+      };
+      
+      const pages = chapterPages[chapterNum] || { start: 1, end: 1 };
       
       return {
         bookId: 'think-python',
         title: `${book.title} - Chapter ${chapterNum}`,
         pdfPath: book.pdfPath,
-        startPage: 1, // Will be determined by PDF outline
-        endPage: 1,
+        startPage: pages.start,
+        endPage: pages.end,
         reference: readingText
       };
     }
 
-    // Default to beginning
+    // Default to chapter 1
     return {
       bookId: 'think-python',
-      title: book.title,
+      title: `${book.title} - Chapter 1`,
       pdfPath: book.pdfPath,
-      startPage: 1,
-      endPage: 1,
+      startPage: 11,
+      endPage: 18,
       reference: readingText
     };
   }
@@ -146,27 +205,43 @@ export function parseReading(readingText) {
     const book = BOOKS['grokking-algorithms'];
     
     // Look for chapter references
-    const chapterMatch = text.match(/ch\.?(\d+)/);
+    const chapterMatch = text.match(/ch\.?\s*(\d+)|chapter\s+(\d+)/);
     if (chapterMatch) {
-      const chapterNum = parseInt(chapterMatch[1]);
+      const chapterNum = parseInt(chapterMatch[1] || chapterMatch[2]);
+      
+      // Map chapters to approximate page ranges
+      const chapterPages = {
+        1: { start: 19, end: 36 },
+        2: { start: 37, end: 56 },
+        3: { start: 57, end: 78 },
+        4: { start: 79, end: 100 },
+        5: { start: 101, end: 122 },
+        6: { start: 123, end: 142 },
+        7: { start: 143, end: 162 },
+        8: { start: 163, end: 182 },
+        9: { start: 183, end: 202 },
+        10: { start: 203, end: 222 }
+      };
+      
+      const pages = chapterPages[chapterNum] || { start: 1, end: 1 };
       
       return {
         bookId: 'grokking-algorithms',
         title: `${book.title} - Chapter ${chapterNum}`,
         pdfPath: book.pdfPath,
-        startPage: 1, // Will be determined by PDF outline
-        endPage: 1,
+        startPage: pages.start,
+        endPage: pages.end,
         reference: readingText
       };
     }
 
-    // Default to beginning
+    // Default to chapter 1
     return {
       bookId: 'grokking-algorithms',
-      title: book.title,
+      title: `${book.title} - Chapter 1`,
       pdfPath: book.pdfPath,
-      startPage: 1,
-      endPage: 1,
+      startPage: 19,
+      endPage: 36,
       reference: readingText
     };
   }

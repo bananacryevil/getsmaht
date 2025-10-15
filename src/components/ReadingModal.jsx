@@ -8,9 +8,9 @@ export default function ReadingModal({ isOpen, onClose, reading }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="w-full h-full max-w-6xl max-h-[95vh] mx-4 bg-white rounded-lg shadow-xl overflow-hidden">
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col" style={{ minHeight: 0 }}>
           {/* Modal header */}
-          <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+          <div className="flex items-center justify-between p-4 border-b bg-gray-50 flex-shrink-0">
             <div>
               <h2 className="text-lg font-semibold">{reading.title}</h2>
               <p className="text-sm text-gray-600">{reading.reference}</p>
@@ -25,13 +25,14 @@ export default function ReadingModal({ isOpen, onClose, reading }) {
           </div>
 
           {/* PDF Reader */}
-          <div className="flex-1">
+          <div className="flex-1" style={{ minHeight: 0 }}>
             <PDFReader
               pdfFile={reading.pdfPath}
               initialPage={reading.startPage || 1}
               onClose={onClose}
               className="h-full"
               book={BOOKS[reading.bookId]}
+              readingReference={reading.reference}
             />
           </div>
         </div>

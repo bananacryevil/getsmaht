@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // Convert PDF outline items to a usable format
 const parseOutlineItems = (items, level = 0) => {
@@ -42,6 +42,7 @@ const getPageFromDest = async (pdfDocument, dest) => {
 export default function PDFTableOfContents({ outline, pdfDocument, onChapterClick, currentPage, isOpen, onToggle }) {
   const [parsedOutline, setParsedOutline] = useState([]);
   const [expandedItems, setExpandedItems] = useState(new Set());
+  const sidebarRef = useRef(null);
 
   useEffect(() => {
     if (outline) {
@@ -53,6 +54,24 @@ export default function PDFTableOfContents({ outline, pdfDocument, onChapterClic
       setExpandedItems(new Set(firstLevelIds));
     }
   }, [outline]);
+
+  // Handle click outside to close TOC
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isOpen && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+        // Check if click is on the toggle button
+        const toggleButton = document.querySelector('[title*="Table of Contents"]');
+        if (toggleButton && !toggleButton.contains(event.target)) {
+          onToggle();
+        }
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen, onToggle]);
 
   const handleItemClick = async (item) => {
     const pageNum = await getPageFromDest(pdfDocument, item.dest);
@@ -157,6 +176,7 @@ export default function PDFTableOfContents({ outline, pdfDocument, onChapterClic
       {/* Sidebar */}
       {isOpen && (
         <div
+          ref={sidebarRef}
           className="fixed left-0 top-0 h-full bg-white border-r shadow-lg transition-transform duration-300 z-40"
           style={{ width: '320px' }}
         >

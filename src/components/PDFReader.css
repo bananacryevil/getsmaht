@@ -1,11 +1,13 @@
 /* PDF Reader styles */
 .react-pdf__Page {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   margin: 0 auto;
+  border: 1px solid #ddd;
 }
 
 .react-pdf__Page__canvas {
-  max-width: 100%;
+  display: block;
+  max-width: none;
   height: auto;
 }
 
@@ -21,4 +23,28 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+/* Custom scrollbar styling */
+.pdf-container::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.pdf-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 6px;
+}
+
+.pdf-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 6px;
+}
+
+.pdf-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.pdf-container::-webkit-scrollbar-corner {
+  background: #f1f1f1;
 }

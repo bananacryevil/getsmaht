@@ -23,6 +23,7 @@ function createWindow() {
     // Production: load built React app from dist with relative paths
     const indexHtml = path.join(__dirname, "dist", "index.html");
     win.loadFile(indexHtml);
+    win.removeMenu();
   }
 }
 
