@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import "./App.css";
 import ReadingModal from './components/ReadingModal';
 import ExerciseModal from './components/ExerciseModal';
+import MarkdownNotesPanel from './components/MarkdownNotesPanel';
+import MarkdownNotesModal from './components/MarkdownNotesModal';
 import { parseReading } from './utils/readingMapper';
 import { initialCurriculum } from './data/curriculumData';
 
@@ -36,11 +38,14 @@ export default function App() {
   const [currentExercise, setCurrentExercise] = useState(null);
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
   const [expandedReadings, setExpandedReadings] = useState(new Set());
+  const [activeNoteDay, setActiveNoteDay] = useState(null);
+  const [notesModalDay, setNotesModalDay] = useState(null);
 
   const initialScrollDoneRef = useRef(false);
   const [pendingScroll, setPendingScroll] = useState(false);
   const highlightRef = useRef(null);
   const highlightTimeoutRef = useRef(null);
+  const notesPanelRef = useRef(null);
 
   const nextIncomplete = useMemo(() => items.find(i => !i.completed), [items]);
 
@@ -114,6 +119,33 @@ export default function App() {
     }
   }, [pendingScroll, nextIncomplete, scrollToDay]);
 
+  useEffect(() => {
+    if (!items.length) return;
+
+    if (activeNoteDay == null) {
+      const firstAvailable = items.find(entry => !entry.completed)?.day ?? items[0].day;
+      setActiveNoteDay(firstAvailable);
+      return;
+    }
+
+    const stillExists = items.some(entry => entry.day === activeNoteDay);
+    if (!stillExists) {
+      setActiveNoteDay(items[0].day);
+    }
+  }, [items, activeNoteDay]);
+
+  useEffect(() => {
+    if (notesModalDay == null) return;
+    const exists = items.some(entry => entry.day === notesModalDay);
+    if (!exists) {
+      setNotesModalDay(null);
+      return;
+    }
+    if (activeNoteDay != null && notesModalDay !== activeNoteDay) {
+      setNotesModalDay(activeNoteDay);
+    }
+  }, [items, notesModalDay, activeNoteDay]);
+
   const toggleComplete = (day) => {
     const target = items.find(it => it.day === day);
     const willComplete = target ? !target.completed : false;
@@ -184,6 +216,14 @@ export default function App() {
 
   const completedCount = items.filter(i => i.completed).length;
   const progress = Math.round((completedCount / items.length) * 100);
+  const activeNoteItem = useMemo(
+    () => items.find(entry => entry.day === activeNoteDay) ?? null,
+    [items, activeNoteDay]
+  );
+  const dayOptions = useMemo(
+    () => items.map(entry => ({ day: entry.day, title: entry.title })),
+    [items]
+  );
 
   const openReading = (readingText, day, readingIndex) => {
     const parsedReading = parseReading(readingText);
@@ -193,7 +233,8 @@ export default function App() {
         window.open(parsedReading.url, '_blank', 'noopener,noreferrer');
       } else {
         // Open PDF in modal
-        setCurrentReading(parsedReading);
+        setCurrentReading({ ...parsedReading, dayNumber: day, readingIndex });
+        setActiveNoteDay(day);
         setIsReadingModalOpen(true);
       }
     } else {
@@ -209,6 +250,32 @@ export default function App() {
         return newSet;
       });
     }
+  };
+
+  const openNotesForDay = (day) => {
+    setActiveNoteDay(day);
+    if (typeof window === 'undefined') return;
+    window.setTimeout(() => {
+      if (notesPanelRef.current) {
+        notesPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 80);
+  };
+
+  const openNotesPopout = (day) => {
+    const targetDay = day ?? activeNoteDay;
+    if (targetDay == null) return;
+    setActiveNoteDay(targetDay);
+    setNotesModalDay(targetDay);
+  };
+
+  const closeNotesPopout = () => {
+    setNotesModalDay(null);
+  };
+
+  const handleNoteValueChange = (value) => {
+    if (activeNoteDay == null) return;
+    updateNotes(activeNoteDay, value ?? "");
   };
 
   const closeReadingModal = () => {
@@ -506,15 +573,46 @@ export default function App() {
                     </div>
 
                     {/* Notes */}
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">📝 Your Notes</h4>
-                      <textarea 
-                        value={it.notes} 
-                        onChange={e => updateNotes(it.day, e.target.value)} 
-                        placeholder="Capture your insights, code snippets, breakthroughs..." 
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm resize-none"
-                        rows={3}
-                      />
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">📝 Your Notes</h4>
+                          <p className="text-xs text-slate-500">
+                            Capture structured notes in the markdown editor panel for this day.
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={() => openNotesForDay(it.day)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 20h9" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
+                            </svg>
+                            Open sidebar editor
+                          </button>
+                          <button
+                            onClick={() => openNotesPopout(it.day)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v13h13" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 15l10-10m0 0h-6m6 0v6" />
+                            </svg>
+                            Pop out editor
+                          </button>
+                        </div>
+                      </div>
+                      {it.notes ? (
+                        <div className="mt-3 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg p-3 leading-relaxed max-h-40 overflow-y-auto whitespace-pre-wrap">
+                          {it.notes}
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-xs text-slate-400 italic">
+                          No notes yet. Click "Open editor" to start capturing takeaways.
+                        </p>
+                      )}
                     </div>
 
                     {/* Completion Timestamp */}
@@ -534,6 +632,18 @@ export default function App() {
 
           {/* Sidebar - Stats & Tips */}
           <aside className="space-y-4">
+            <div ref={notesPanelRef} id="markdown-notes-panel">
+              <MarkdownNotesPanel
+                dayOptions={dayOptions}
+                activeDay={activeNoteDay}
+                onSelectDay={setActiveNoteDay}
+                noteValue={activeNoteItem?.notes ?? ""}
+                onChangeNote={handleNoteValueChange}
+                onJumpToDay={scrollToDay}
+                onPopOut={openNotesPopout}
+              />
+            </div>
+
             {/* Next Up Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
               <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4">
@@ -663,6 +773,16 @@ export default function App() {
         isOpen={isReadingModalOpen}
         onClose={closeReadingModal}
         reading={currentReading}
+        notesProps={currentReading ? {
+          dayOptions,
+          activeDay: activeNoteDay,
+          onSelectDay: setActiveNoteDay,
+          noteValue: activeNoteItem?.notes ?? "",
+          onChangeNote: handleNoteValueChange,
+          onJumpToDay: scrollToDay,
+          height: 560
+        } : null}
+        onPopOutNotes={openNotesPopout}
       />
 
       {/* Exercise Modal */}
@@ -672,6 +792,20 @@ export default function App() {
         dayNumber={currentExercise?.day}
         title={currentExercise?.title}
         exercises={currentExercise?.exercises || []}
+      />
+
+      <MarkdownNotesModal
+        isOpen={notesModalDay != null}
+        onClose={closeNotesPopout}
+        editorProps={{
+          dayOptions,
+          activeDay: activeNoteDay,
+          onSelectDay: setActiveNoteDay,
+          noteValue: activeNoteItem?.notes ?? "",
+          onChangeNote: handleNoteValueChange,
+          onJumpToDay: scrollToDay,
+          height: 560
+        }}
       />
     </div>
   );
