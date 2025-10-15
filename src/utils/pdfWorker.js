@@ -1,7 +1,8 @@
-// PDF.js worker configuration for Vite
+// PDF.js worker configuration for Vite/Electron builds
 import { pdfjs } from 'react-pdf';
+import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.js?url';
 
-// Configure the worker to use local file with .js extension (v3.11.174)
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+// Use the bundled worker path so it resolves under both dev server and file:// protocols
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
 
 export { pdfjs };

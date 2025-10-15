@@ -1,12 +1,14 @@
 // Reading mapping utility to connect curriculum readings with PDF files
-// Note: PDF files will be loaded dynamically from the assets folder
+const solveItPdf = new URL('../assets/solveit.pdf', import.meta.url).href;
+const thinkPythonPdf = new URL('../assets/thinkpython.pdf', import.meta.url).href;
+const grokkingPdf = new URL('../assets/grokking.pdf', import.meta.url).href;
 
 // Book metadata and chapter mappings
 export const BOOKS = {
   'how-to-solve-it': {
     title: 'How to Solve It',
     author: 'George Pólya',
-    pdfPath: '/src/assets/solveit.pdf',
+    pdfPath: solveItPdf,
     chapters: {
       'preface': { startPage: 5, endPage: 8, title: 'Preface' },
       'introduction': { startPage: 9, endPage: 14, title: 'Introduction' },
@@ -22,7 +24,7 @@ export const BOOKS = {
   'think-python': {
     title: 'Think Python',
     author: 'Allen B. Downey',
-    pdfPath: '/src/assets/thinkpython.pdf',
+    pdfPath: thinkPythonPdf,
     chapters: {
       'preface': { startPage: 7, endPage: 10, title: 'Preface' },
       'ch.1': { startPage: 11, endPage: 18, title: 'Chapter 1: The Way of the Program' },
@@ -42,7 +44,7 @@ export const BOOKS = {
   'grokking-algorithms': {
     title: 'Grokking Algorithms',
     author: 'Aditya Bhargava',
-    pdfPath: '/src/assets/grokking.pdf',
+    pdfPath: grokkingPdf,
     chapters: {
       'preface': { startPage: 7, endPage: 12, title: 'Preface' },
       'introduction': { startPage: 13, endPage: 18, title: 'Introduction' },
