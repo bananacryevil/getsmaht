@@ -1,11 +1,10 @@
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
-import workerSrc from 'pdfjs-dist/build/pdf.worker.min.js?raw';
 
-// The workerSrc is a string of the worker code. We need to create a blob URL from it.
-const workerBlob = new Blob([workerSrc], { type: 'application/javascript' });
-const workerUrl = URL.createObjectURL(workerBlob);
-
-GlobalWorkerOptions.workerSrc = workerUrl;
+// Set the worker source to the local copy in the public folder
+GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).href;
 
 export { getDocument };
 

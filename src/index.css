@@ -35,3 +35,49 @@
 .bn-block-content {
   margin-left: 0 !important;
 }
+
+.bn-editor-shell {
+  position: relative;
+}
+
+.bn-editor-shell .bn-editor-surface {
+  position: relative;
+  z-index: 1;
+}
+
+.bn-highlight-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.bn-code-highlighted {
+  background: transparent !important;
+}
+
+.bn-code-highlighted code {
+  color: transparent !important;
+  caret-color: inherit;
+  background: none !important;
+}
+
+.bn-code-highlight {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  display: block;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  white-space: inherit;
+  word-break: inherit;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.bn-code-highlight code {
+  color: inherit !important;
+}

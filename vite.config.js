@@ -12,7 +12,7 @@ export default defineConfig({
     include: ['pdfjs-dist'] // Include pdfjs-dist in pre-bundling
   },
   worker: {
-    format: 'iife'
+    format: 'es'
   },
   build: {
     rollupOptions: {
