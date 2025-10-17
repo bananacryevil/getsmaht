@@ -307,7 +307,7 @@ function NotesWindow() {
           {/* Editor container with zoom and scroll */}
           <div 
             ref={editorContainerRef}
-            className="flex-1 overflow-auto p-[10px]"
+            className="flex-1 overflow-y-auto overflow-x-hidden p-[10px]"
           >
             <div style={zoomContentStyle} className="bn-editor-shell">
               <div className="bn-editor-surface">

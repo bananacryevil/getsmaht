@@ -19,6 +19,7 @@ import { initialCurriculum } from './data/curriculumData';
 // - Or paste this into an environment that supports Tailwind + React
 
 const STORAGE_KEY = "curriculum_tracker_v1";
+const WEEK_FILTER_KEY = "curriculum_week_filter_v1";
 
 export default function App() {
   const [items, setItems] = useState(() => {
@@ -30,7 +31,16 @@ export default function App() {
     }
     return initialCurriculum();
   });
-  const [filterWeek, setFilterWeek] = useState("all");
+  const [filterWeek, setFilterWeek] = useState(() => {
+    try {
+      const raw = localStorage.getItem(WEEK_FILTER_KEY);
+      const allowed = new Set(["all", "1", "2", "3", "4", "5"]);
+      if (raw && allowed.has(raw)) return raw;
+    } catch (e) {
+      console.error("Failed to load week filter from storage", e);
+    }
+    return "all";
+  });
   const [search, setSearch] = useState("");
   const [currentReading, setCurrentReading] = useState(null);
   const [isReadingModalOpen, setIsReadingModalOpen] = useState(false);
@@ -43,6 +53,8 @@ export default function App() {
   const highlightRef = useRef(null);
   const highlightTimeoutRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const mainContentRef = useRef(null);
+  const [listHeightPx, setListHeightPx] = useState(0);
 
   const nextIncomplete = useMemo(() => items.find(i => !i.completed), [items]);
 
@@ -63,12 +75,15 @@ export default function App() {
 
     // Calculate the scroll position within the container
     const elementTop = element.offsetTop;
-    const containerTop = container.offsetTop;
-    const scrollPosition = elementTop - containerTop;
+    const containerScrollTop = container.scrollTop;
+    const containerOffsetTop = container.offsetTop;
+    
+    // Calculate target scroll position to bring element to the top of the container
+    const targetScrollTop = elementTop - containerOffsetTop;
 
     // Scroll the container, not the entire page
     container.scrollTo({
-      top: scrollPosition,
+      top: targetScrollTop,
       behavior: effectiveBehavior
     });
 
@@ -102,11 +117,55 @@ export default function App() {
     }
   }, [items]);
 
+  // Persist the selected week filter
+  useEffect(() => {
+    try {
+      localStorage.setItem(WEEK_FILTER_KEY, filterWeek);
+    } catch (e) {
+      console.error("Failed to save week filter", e);
+    }
+  }, [filterWeek]);
+
   useEffect(() => () => {
     if (highlightTimeoutRef.current) {
       clearTimeout(highlightTimeoutRef.current);
       highlightTimeoutRef.current = null;
     }
+  }, []);
+
+  // Dynamically size the scroll container so it reaches near the bottom of the window
+  useEffect(() => {
+    const BOTTOM_GAP_PX = 48; // ~0.5 inch on standard CSS px (96dpi)
+
+    const computeHeight = () => {
+      const el = scrollContainerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+      const available = Math.max(0, Math.floor(viewportH - rect.top - BOTTOM_GAP_PX));
+      // Only update if changed to avoid reflows
+      setListHeightPx(prev => (prev !== available ? available : prev));
+    };
+
+    // Initial calculations after paint to ensure correct measurements
+    const rafId = requestAnimationFrame(computeHeight);
+    const toId = setTimeout(computeHeight, 0);
+
+    window.addEventListener('resize', computeHeight);
+
+    // Recompute if the main content area reflows (e.g., header size changes)
+    let ro;
+    if ('ResizeObserver' in window && mainContentRef.current) {
+      ro = new ResizeObserver(() => computeHeight());
+      ro.observe(mainContentRef.current);
+    }
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(toId);
+      window.removeEventListener('resize', computeHeight);
+      if (ro) ro.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -117,9 +176,14 @@ export default function App() {
   }, [nextIncomplete, scrollToDay]);
 
   useEffect(() => {
-    if (pendingScroll) {
-      scrollToDay(nextIncomplete?.day);
-      setPendingScroll(false);
+    if (pendingScroll && nextIncomplete) {
+      // Delay to allow the DOM to update and make the scroll feel more intentional
+      const timeoutId = setTimeout(() => {
+        scrollToDay(nextIncomplete.day, { behavior: 'smooth' });
+        setPendingScroll(false);
+      }, 300);
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [pendingScroll, nextIncomplete, scrollToDay]);
 
@@ -339,10 +403,10 @@ export default function App() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+  {/* Main Content */}
+  <div ref={mainContentRef} className="max-w-7xl mx-auto px-6 py-4 pb-3">
         {/* Filters & Search */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-8">
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <select 
             value={filterWeek} 
             onChange={e => setFilterWeek(e.target.value)} 
@@ -371,9 +435,13 @@ export default function App() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start mb-3">
           {/* Main Content - Days List with Independent Scroll */}
-          <div ref={scrollContainerRef} className="lg:col-span-2 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto lg:pr-4 space-y-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
+          <div
+            ref={scrollContainerRef}
+            className="lg:col-span-2 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent py-2 px-1 pb-4"
+            style={listHeightPx ? { maxHeight: listHeightPx + 'px', height: listHeightPx + 'px' } : undefined}
+          >
             {filtered.map(it => {
               const week = Math.ceil(it.day / 7);
               const weekColors = {
@@ -402,15 +470,15 @@ export default function App() {
                         <h3 className="text-lg font-bold text-white drop-shadow-sm">{it.title}</h3>
                       </div>
                       
-                      <label className="flex items-center gap-2 cursor-pointer group/checkbox">
+                      <label className="flex items-center gap-2.5 cursor-pointer group/checkbox">
                         <input 
                           type="checkbox" 
                           checked={it.completed} 
                           onChange={() => toggleComplete(it.day)}
-                          className="w-5 h-5 rounded border-2 border-white/60 text-white focus:ring-2 focus:ring-white/50 bg-white/20 cursor-pointer"
+                          className="completion-checkbox"
                         />
-                        <span className="text-sm font-semibold text-white/90 group-hover/checkbox:text-white transition-colors">
-                          {it.completed ? '✓ Done' : 'Mark Done'}
+                        <span className="text-sm font-semibold text-white/95 group-hover/checkbox:text-white transition-colors drop-shadow-sm">
+                          {it.completed ? 'Done' : 'Mark Done'}
                         </span>
                       </label>
                     </div>

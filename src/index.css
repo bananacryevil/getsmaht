@@ -36,6 +36,13 @@
   margin-left: 0 !important;
 }
 
+/* Prevent horizontal overflow in editor content only */
+.bn-block-content > * {
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
 .bn-editor-shell {
   position: relative;
 }

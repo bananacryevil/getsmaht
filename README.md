@@ -14,3 +14,13 @@ The React Compiler is not enabled on this template. To add it, see [this documen
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Window size and position persistence
+
+This app preserves window size and position across launches for a frictionless study workflow. The main window and notes windows persist independently, so your Notes window reopens exactly where you last placed it, separate from the main window.
+
+Details:
+
+- State is stored in your user data folder as `window-state.json`.
+- The file contains keys for each window type, e.g. `{ "main": { x, y, width, height }, "notes": { ... } }`.
+- If a legacy single-object format exists, it's read and migrated seamlessly.

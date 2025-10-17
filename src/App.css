@@ -1,11 +1,11 @@
 @keyframes scrollTargetFlash {
 	0% {
-		box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.35);
+		box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
 		transform: scale(1);
 	}
 	30% {
-		box-shadow: 0 0 0 12px rgba(99, 102, 241, 0.12);
-		transform: scale(1.01);
+		box-shadow: 0 0 0 8px rgba(99, 102, 241, 0.15);
+		transform: scale(1.002);
 	}
 	100% {
 		box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
@@ -19,11 +19,75 @@
 }
 
 .curriculum-day {
-	scroll-margin-top: 96px;
+	scroll-margin-top: 16px;
+	scroll-margin-bottom: 16px;
 }
 
-@media (min-width: 1024px) {
-	.curriculum-day {
-		scroll-margin-top: 36px;
-	}
+/* Custom scrollbar styling */
+.scrollbar-thin {
+	scrollbar-width: thin;
+	scrollbar-color: rgb(203 213 225) transparent;
+	scroll-behavior: smooth;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+	background: transparent;
+	border-radius: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+	background: rgb(203 213 225);
+	border-radius: 4px;
+	transition: background 0.2s;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+	background: rgb(148 163 184);
+}
+
+/* Custom checkbox styling for completion */
+.completion-checkbox {
+	appearance: none;
+	-webkit-appearance: none;
+	width: 1.25rem;
+	height: 1.25rem;
+	border-radius: 0.375rem;
+	border: 2px solid rgba(255, 255, 255, 0.6);
+	background-color: rgba(255, 255, 255, 0.2);
+	cursor: pointer;
+	position: relative;
+	transition: all 0.2s;
+}
+
+.completion-checkbox:hover {
+	background-color: rgba(255, 255, 255, 0.3);
+	border-color: rgba(255, 255, 255, 0.8);
+}
+
+.completion-checkbox:checked {
+	background-color: white;
+	border-color: white;
+}
+
+.completion-checkbox:checked::after {
+	content: '';
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: 0.75rem;
+	height: 0.75rem;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%234f46e5'%3E%3Cpath fill-rule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clip-rule='evenodd'/%3E%3C/svg%3E");
+	background-size: contain;
+	background-repeat: no-repeat;
+}
+
+.completion-checkbox:focus {
+	outline: 2px solid rgba(255, 255, 255, 0.5);
+	outline-offset: 2px;
 }

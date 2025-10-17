@@ -18,7 +18,7 @@ export default function ReadingModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="w-full h-full max-w-7xl max-h-[95vh] mx-4 bg-white rounded-lg shadow-xl overflow-hidden">
+      <div className="w-full h-full bg-white overflow-hidden">
         <div className="h-full flex flex-col" style={{ minHeight: 0 }}>
           {/* Modal header */}
           <div className="flex items-center justify-between p-4 border-b bg-gray-50 flex-shrink-0">
@@ -33,13 +33,22 @@ export default function ReadingModal({
               </div>
               <p className="text-sm text-gray-600 mt-1">{reading.reference}</p>
             </div>
-            <button 
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-xl font-bold"
-              title="Close (Esc)"
-            >
-              ×
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleOpenNotes}
+                className="px-3 py-2 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 transition-colors font-semibold text-sm"
+                title="Open notes in separate window"
+              >
+                Notes
+              </button>
+              <button 
+                onClick={onClose}
+                className="text-gray-500 hover:text-gray-700 text-xl font-bold px-2"
+                title="Close (Esc)"
+              >
+                ×
+              </button>
+            </div>
           </div>
 
           {/* PDF Reader - Full Width */}
@@ -53,13 +62,6 @@ export default function ReadingModal({
                 className="h-full"
               />
             </div>
-            <button
-              onClick={handleOpenNotes}
-              className="fixed right-4 top-24 z-50 px-3 py-2 bg-blue-600 text-white rounded-l-md shadow-lg hover:bg-blue-700 transition-colors font-semibold text-sm"
-              title="Open notes in separate window"
-            >
-              Notes
-            </button>
           </div>
         </div>
       </div>

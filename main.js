@@ -3,6 +3,7 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs/promises";
+import { getInitialBounds, watchWindowState } from "./window-state.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,16 +11,17 @@ const __dirname = path.dirname(__filename);
 let mainWindow = null;
 const notesWindows = new Map();
 
-function createWindow() {
+async function createWindow() {
+  const initialBounds = await getInitialBounds({ defaultWidth: 1600, defaultHeight: 900, key: 'main' });
   const win = new BrowserWindow({
-    width: 1600,
-    height: 900,
+    ...initialBounds,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
     },
   });
 
   mainWindow = win;
+  watchWindowState(win, 'main');
 
   if (process.env.ELECTRON_START_URL) {
     // Dev mode: Vite dev server
@@ -29,11 +31,11 @@ function createWindow() {
     // Production: load built React app from dist with relative paths
     const indexHtml = path.join(__dirname, "dist", "index.html");
     win.loadFile(indexHtml);
-    // win.removeMenu();
+    win.removeMenu();
   }
 }
 
-function createNotesWindow(day, title) {
+async function createNotesWindow(day, title) {
   // Check if window for this day already exists
   if (notesWindows.has(day)) {
     const existingWindow = notesWindows.get(day);
@@ -43,9 +45,9 @@ function createNotesWindow(day, title) {
     }
   }
 
+  const initialBounds = await getInitialBounds({ defaultWidth: 800, defaultHeight: 600, minWidth: 400, minHeight: 300, key: `notes` });
   const notesWin = new BrowserWindow({
-    width: 800,
-    height: 600,
+    ...initialBounds,
     minWidth: 400,
     minHeight: 300,
     title: `Notes - Day ${day}: ${title}`,
@@ -55,6 +57,8 @@ function createNotesWindow(day, title) {
   });
 
   notesWindows.set(day, notesWin);
+  // Use a shared key for all notes windows so they restore consistently
+  watchWindowState(notesWin, 'notes');
 
   // Clean up when window is closed
   notesWin.on('closed', () => {
@@ -68,6 +72,7 @@ function createNotesWindow(day, title) {
     // Production: load notes page from dist
     const notesHtml = path.join(__dirname, "dist", "notes.html");
     notesWin.loadFile(notesHtml, { query: { day: String(day) } });
+    notesWin.removeMenu();
   }
 }
 
