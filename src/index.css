@@ -49,19 +49,39 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
   width: 100%;
   height: 100%;
+  overflow: hidden;
+  transition: opacity 0.1s ease-out;
 }
 
+/* Keep code block background dark */
 .bn-code-highlighted {
-  background: transparent !important;
+  background: #0d1117 !important;
+  position: relative;
+  border-radius: 6px;
+  padding: 16px;
 }
 
 .bn-code-highlighted code {
-  color: transparent !important;
-  caret-color: inherit;
-  background: none !important;
+  /* Let Shiki handle the colors - don't override! */
+  caret-color: #fff !important;
+  background: transparent !important;
+  position: relative;
+  z-index: 0;
+}
+
+/* Text selection in code blocks - visible blue highlight */
+.bn-code-highlighted code::selection {
+  background: rgba(58, 130, 246, 0.6) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+.bn-code-highlighted code::-moz-selection {
+  background: rgba(58, 130, 246, 0.6) !important;
+  color: #fff !important;
 }
 
 .bn-code-highlight {
@@ -72,12 +92,19 @@
   color: inherit;
   font: inherit;
   line-height: inherit;
-  white-space: inherit;
+  white-space: pre;
   word-break: inherit;
   overflow: hidden;
-  z-index: 0;
+  z-index: 1;
+  background: transparent;
 }
 
 .bn-code-highlight code {
+  /* Shiki handles syntax colors */
+  color: inherit !important;
+}
+
+/* Ensure Shiki span colors show through */
+.bn-code-highlighted span {
   color: inherit !important;
 }

@@ -2,60 +2,16 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { createRoot } from "react-dom/client";
 import { BlockNoteView } from "@blocknote/mantine";
 import { useCreateBlockNote } from "@blocknote/react";
+import { BlockNoteSchema, createCodeBlockSpec } from "@blocknote/core";
+import { codeBlockOptions } from "@blocknote/code-block";
 import "@blocknote/mantine/style.css";
-import hljs from "highlight.js/lib/core";
-import python from "highlight.js/lib/languages/python";
-import javascript from "highlight.js/lib/languages/javascript";
-import typescript from "highlight.js/lib/languages/typescript";
-import json from "highlight.js/lib/languages/json";
-import shell from "highlight.js/lib/languages/shell";
-import xml from "highlight.js/lib/languages/xml";
-import yaml from "highlight.js/lib/languages/yaml";
-import "highlight.js/styles/github.css";
+import "@blocknote/core/fonts/inter.css";
 import "./index.css";
 
 // Predefined zoom levels for consistent stepping
 const ZOOM_LEVELS = [0.5, 0.6, 0.65, 0.75, 0.85, 1, 1.15, 1.3, 1.5, 1.75, 2];
 const DEFAULT_ZOOM = 0.65;
 const ZOOM_STORAGE_KEY = "notesWindowZoomLevel";
-
-const LANGUAGE_ALIASES = {
-  py: "python",
-  js: "javascript",
-  jsx: "javascript",
-  ts: "typescript",
-  tsx: "typescript",
-  sh: "shell",
-  bash: "shell",
-  html: "xml",
-  xml: "xml",
-  yml: "yaml",
-  yaml: "yaml",
-};
-
-const DEFAULT_LANGUAGE_SUBSET = ["python", "javascript", "typescript", "json", "shell", "xml", "yaml"];
-
-if (!hljs.getLanguage("python")) {
-  hljs.registerLanguage("python", python);
-}
-if (!hljs.getLanguage("javascript")) {
-  hljs.registerLanguage("javascript", javascript);
-}
-if (!hljs.getLanguage("typescript")) {
-  hljs.registerLanguage("typescript", typescript);
-}
-if (!hljs.getLanguage("json")) {
-  hljs.registerLanguage("json", json);
-}
-if (!hljs.getLanguage("shell")) {
-  hljs.registerLanguage("shell", shell);
-}
-if (!hljs.getLanguage("xml")) {
-  hljs.registerLanguage("xml", xml);
-}
-if (!hljs.getLanguage("yaml")) {
-  hljs.registerLanguage("yaml", yaml);
-}
 
 function NotesWindow() {
   const [day, setDay] = useState(null);
@@ -89,8 +45,6 @@ function NotesWindow() {
     }
   });
   const editorContainerRef = useRef(null);
-  const highlightLayerRef = useRef(null);
-  const highlightFrameRef = useRef(null);
 
   useEffect(() => {
     // Get day from query params
@@ -172,6 +126,12 @@ function NotesWindow() {
 
   // Create BlockNote editor instance with dependency on initialContent
   const editor = useCreateBlockNote({
+    schema: BlockNoteSchema.create().extend({
+      blockSpecs: {
+        // Use pre-configured code block with syntax highlighting
+        codeBlock: createCodeBlockSpec(codeBlockOptions),
+      },
+    }),
     initialContent,
   }, [initialContent]);
 
@@ -187,7 +147,6 @@ function NotesWindow() {
     } catch (error) {
       console.error("Failed to save notes:", error);
     }
-    scheduleHighlight();
   };
 
   // Zoom adjustment function - finds the nearest zoom level and steps through predefined levels
@@ -261,158 +220,6 @@ function NotesWindow() {
     window.addEventListener('wheel', handleWheel, { passive: false });
     return () => window.removeEventListener('wheel', handleWheel, { passive: false });
   }, [zoomIn, zoomOut]);
-
-  const highlightCodeBlocks = useCallback(() => {
-    const container = editorContainerRef.current;
-    const highlightLayer = highlightLayerRef.current;
-    if (!container || !highlightLayer) return;
-
-    // Reset any previous overlays and classes before recalculating highlight positions.
-    highlightLayer.innerHTML = "";
-    container.querySelectorAll("pre.bn-code-highlighted").forEach((pre) => pre.classList.remove("bn-code-highlighted"));
-
-    const codeBlocks = container.querySelectorAll("pre code");
-    codeBlocks.forEach((codeNode) => {
-      const preNode = codeNode.parentElement;
-      if (!preNode) return;
-
-      const rawText = codeNode.textContent ?? "";
-      const trimmed = rawText.trim();
-
-      if (!trimmed) {
-        codeNode.removeAttribute("data-detected-language");
-        return;
-      }
-
-      const languageCandidates = (codeNode.getAttribute("data-language")
-        || codeNode.getAttribute("data-lang")
-        || codeNode.getAttribute("class")
-        || "")
-        .split(/[\s,]+/)
-        .map((token) => token.trim())
-        .filter(Boolean)
-        .map((token) => token.replace(/^language-/, ""))
-        .map((token) => token.toLowerCase())
-        .map((token) => LANGUAGE_ALIASES[token] || token);
-
-      const explicitLanguage = languageCandidates.find((token) => hljs.getLanguage(token));
-
-      let highlightResult;
-      try {
-        if (explicitLanguage) {
-          highlightResult = hljs.highlight(rawText, { language: explicitLanguage });
-        } else {
-          highlightResult = hljs.highlightAuto(rawText, DEFAULT_LANGUAGE_SUBSET);
-        }
-      } catch (error) {
-        console.warn("Code highlight failed:", error);
-        return;
-      }
-
-      if (!highlightResult?.value) {
-        return;
-      }
-
-      preNode.classList.add("bn-code-highlighted");
-      const overlay = document.createElement("div");
-      overlay.className = "bn-code-highlight hljs";
-      overlay.setAttribute("aria-hidden", "true");
-      overlay.innerHTML = highlightResult.value;
-
-      const codeRect = preNode.getBoundingClientRect();
-      const layerRect = highlightLayer.getBoundingClientRect();
-      const computed = window.getComputedStyle(preNode);
-  const scale = zoomLevel || 1;
-
-  overlay.style.left = `${(codeRect.left - layerRect.left) / scale}px`;
-  overlay.style.top = `${(codeRect.top - layerRect.top) / scale}px`;
-  overlay.style.width = `${codeRect.width / scale}px`;
-  overlay.style.height = `${codeRect.height / scale}px`;
-      overlay.style.padding = computed.padding;
-      overlay.style.borderRadius = computed.borderRadius;
-      overlay.style.boxSizing = "border-box";
-      overlay.style.whiteSpace = computed.whiteSpace;
-  overlay.style.wordBreak = computed.wordBreak;
-      overlay.style.font = computed.font;
-      overlay.style.lineHeight = computed.lineHeight;
-      overlay.style.setProperty("tab-size", computed.getPropertyValue("tab-size"));
-
-      if (highlightResult.language) {
-        codeNode.setAttribute("data-detected-language", highlightResult.language);
-        overlay.classList.add(`language-${highlightResult.language}`);
-      } else if (explicitLanguage) {
-        overlay.classList.add(`language-${explicitLanguage}`);
-        codeNode.setAttribute("data-detected-language", explicitLanguage);
-      } else {
-        codeNode.removeAttribute("data-detected-language");
-      }
-
-      highlightLayer.appendChild(overlay);
-    });
-  }, [zoomLevel]);
-
-  const scheduleHighlight = useCallback(() => {
-    if (highlightFrameRef.current !== null) return;
-
-    highlightFrameRef.current = window.requestAnimationFrame(() => {
-      highlightFrameRef.current = null;
-      highlightCodeBlocks();
-    });
-  }, [highlightCodeBlocks]);
-
-  useEffect(() => {
-    scheduleHighlight();
-  }, [initialContent, scheduleHighlight]);
-
-  useEffect(() => {
-    scheduleHighlight();
-  }, [zoomLevel, scheduleHighlight]);
-
-  useEffect(() => {
-    const handleResize = () => scheduleHighlight();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [scheduleHighlight]);
-
-  useEffect(() => {
-    const container = editorContainerRef.current;
-    if (!container) return undefined;
-
-    scheduleHighlight();
-
-    const observer = new MutationObserver((mutations) => {
-      const shouldHighlight = mutations.some((mutation) => {
-        if (mutation.type === "characterData") {
-          const parentElement = mutation.target instanceof Node ? mutation.target.parentElement : null;
-          return Boolean(parentElement?.closest?.("pre"));
-        }
-        if (mutation.type === "childList") {
-          const added = Array.from(mutation.addedNodes).some((node) => node instanceof HTMLElement && node.matches?.("pre, pre *"));
-          const removed = Array.from(mutation.removedNodes).some((node) => node instanceof HTMLElement && node.matches?.("pre, pre *"));
-          return added || removed;
-        }
-        return false;
-      });
-
-      if (shouldHighlight) {
-        scheduleHighlight();
-      }
-    });
-
-    observer.observe(container, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-    });
-
-    return () => {
-      observer.disconnect();
-      if (highlightFrameRef.current !== null) {
-        window.cancelAnimationFrame(highlightFrameRef.current);
-        highlightFrameRef.current = null;
-      }
-    };
-  }, [scheduleHighlight]);
 
   // Format zoom level as percentage for display
   const zoomLabel = useMemo(() => `${Math.round(zoomLevel * 100)}%`, [zoomLevel]);
@@ -503,7 +310,6 @@ function NotesWindow() {
             className="flex-1 overflow-auto p-[10px]"
           >
             <div style={zoomContentStyle} className="bn-editor-shell">
-              <div ref={highlightLayerRef} className="bn-highlight-layer" />
               <div className="bn-editor-surface">
                 <BlockNoteView 
                   editor={editor} 
