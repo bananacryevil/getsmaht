@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import MDEditor from "@uiw/react-md-editor";
-import remarkGfm from "remark-gfm";
-import "@uiw/react-md-editor/markdown-editor.css";
-import "@uiw/react-markdown-preview/markdown.css";
+import { BlockNoteView } from "@blocknote/mantine";
+import { useCreateBlockNote } from "@blocknote/react";
+import "@blocknote/mantine/style.css";
 
 export default function ReadingNotesEditor({
   day,
@@ -11,16 +10,68 @@ export default function ReadingNotesEditor({
   onChange,
   onPopOut
 }) {
-  const [localValue, setLocalValue] = useState(value || "");
+  const [initialContent, setInitialContent] = useState(null);
 
   useEffect(() => {
-    setLocalValue(value || "");
+    try {
+      if (value) {
+        const parsed = JSON.parse(value);
+        setInitialContent(parsed);
+      } else {
+        setInitialContent([
+          {
+            type: "heading",
+            content: "Reading notes",
+            props: { level: 2 },
+          },
+          {
+            type: "heading",
+            content: "Key concepts",
+            props: { level: 3 },
+          },
+          {
+            type: "bulletListItem",
+            content: "",
+          },
+          {
+            type: "heading",
+            content: "Questions",
+            props: { level: 3 },
+          },
+          {
+            type: "bulletListItem",
+            content: "",
+          },
+          {
+            type: "heading",
+            content: "Takeaways",
+            props: { level: 3 },
+          },
+          {
+            type: "bulletListItem",
+            content: "",
+          },
+        ]);
+      }
+    } catch {
+      // If it's not JSON, treat as plain text
+      setInitialContent([
+        {
+          type: "paragraph",
+          content: value || "",
+        },
+      ]);
+    }
   }, [value]);
 
-  const handleChange = (newValue) => {
-    const val = newValue || "";
-    setLocalValue(val);
-    onChange(val);
+  const editor = useCreateBlockNote({
+    initialContent: initialContent || undefined,
+  });
+
+  const handleChange = () => {
+    if (!editor) return;
+    const blocks = editor.document;
+    onChange(JSON.stringify(blocks));
   };
 
   const handlePopOut = () => {
@@ -72,18 +123,16 @@ export default function ReadingNotesEditor({
         </p>
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        <MDEditor
-          value={localValue}
-          onChange={handleChange}
-          height="100%"
-          preview="live"
-          visibleDragbar
-          textareaProps={{
-            placeholder: "## Reading notes\n\n### Key concepts\n- \n\n### Questions\n- \n\n### Takeaways\n- ",
-          }}
-          previewOptions={{ remarkPlugins: [remarkGfm] }}
-        />
+      <div className="flex-1 overflow-hidden bg-white flex flex-col">
+        <div className="flex-1 overflow-hidden p-[10px]">
+          {editor && (
+            <BlockNoteView 
+              editor={editor}
+              onChange={handleChange}
+              theme="light"
+            />
+          )}
+        </div>
       </div>
     </div>
   );

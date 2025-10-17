@@ -1,9 +1,31 @@
 import React, { useState, useRef, useEffect } from "react";
-import MDEditor from "@uiw/react-md-editor";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import "@uiw/react-md-editor/markdown-editor.css";
-import "@uiw/react-markdown-preview/markdown.css";
+import { BlockNoteView } from "@blocknote/mantine";
+import { useCreateBlockNote } from "@blocknote/react";
+import "@blocknote/mantine/style.css";
+
+// Helper function to render a simple text preview from BlockNote JSON
+function renderSimplePreview(jsonString) {
+  try {
+    const blocks = JSON.parse(jsonString);
+    return blocks
+      .map(block => {
+        const content = block.content || "";
+        if (typeof content === "string") return content;
+        if (Array.isArray(content)) {
+          return content.map(item => {
+            if (typeof item === "string") return item;
+            if (item.text) return item.text;
+            return "";
+          }).join("");
+        }
+        return "";
+      })
+      .filter(text => text.trim())
+      .join("\n\n");
+  } catch {
+    return jsonString;
+  }
+}
 
 export default function InlineNotesEditor({
   day,
@@ -13,37 +35,46 @@ export default function InlineNotesEditor({
   onPopOut
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [localValue, setLocalValue] = useState(value || "");
+  const [initialContent, setInitialContent] = useState(null);
   const editorRef = useRef(null);
-  const textareaRef = useRef(null);
 
+  // Parse value into BlockNote format
   useEffect(() => {
-    setLocalValue(value || "");
+    try {
+      if (value) {
+        const parsed = JSON.parse(value);
+        setInitialContent(parsed);
+      } else {
+        setInitialContent([
+          {
+            type: "paragraph",
+            content: "",
+          },
+        ]);
+      }
+    } catch {
+      // If it's not JSON, treat as plain text
+      setInitialContent([
+        {
+          type: "paragraph",
+          content: value || "",
+        },
+      ]);
+    }
   }, [value]);
 
-  useEffect(() => {
-    // Auto-focus the textarea when entering edit mode
-    if (isEditing && editorRef.current) {
-      // Find the textarea within the MDEditor
-      const textarea = editorRef.current.querySelector('textarea');
-      if (textarea) {
-        // Small delay to ensure the editor is rendered
-        setTimeout(() => {
-          textarea.focus();
-          // Move cursor to end of text
-          const length = textarea.value.length;
-          textarea.setSelectionRange(length, length);
-        }, 0);
-      }
-    }
-  }, [isEditing]);
+  const editor = useCreateBlockNote({
+    initialContent: initialContent || undefined,
+  });
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (editorRef.current && !editorRef.current.contains(event.target)) {
-        if (isEditing) {
+        if (isEditing && editor) {
           setIsEditing(false);
-          onChange(localValue);
+          // Save on blur
+          const blocks = editor.document;
+          onChange(JSON.stringify(blocks));
         }
       }
     };
@@ -54,14 +85,17 @@ export default function InlineNotesEditor({
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
-  }, [isEditing, localValue, onChange]);
+  }, [isEditing, editor, onChange]);
 
   const handleEditClick = () => {
     setIsEditing(true);
   };
 
-  const handleChange = (newValue) => {
-    setLocalValue(newValue || "");
+  const handleChange = () => {
+    // Auto-save on change
+    if (!editor) return;
+    const blocks = editor.document;
+    onChange(JSON.stringify(blocks));
   };
 
   const handlePopOut = () => {
@@ -100,30 +134,26 @@ export default function InlineNotesEditor({
 
       <div ref={editorRef}>
         {isEditing ? (
-          <div className="border border-slate-300 rounded-lg overflow-hidden bg-white" data-color-mode="light">
-            <MDEditor
-              value={localValue}
-              onChange={handleChange}
-              height={300}
-              preview="edit"
-              hideToolbar={false}
-              visibleDragbar={false}
-              textareaProps={{
-                placeholder: "## Daily notes\n- Key ideas\n- Wins\n- Follow-ups",
-              }}
-              previewOptions={{ remarkPlugins: [remarkGfm] }}
-            />
+          <div className="border border-slate-300 rounded-lg overflow-hidden bg-white flex flex-col" data-color-mode="light" style={{ height: '300px' }}>
+            <div className="flex-1 overflow-hidden p-[10px]">
+              {editor && (
+                <BlockNoteView 
+                  editor={editor}
+                  onChange={handleChange}
+                  theme="light"
+                />
+              )}
+            </div>
           </div>
         ) : (
           <div
             onClick={handleEditClick}
             className="min-h-[120px] cursor-text bg-white border border-slate-200 rounded-lg p-3 hover:border-blue-300 transition-colors"
           >
-            {localValue ? (
-              <div className="prose prose-sm max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {localValue}
-                </ReactMarkdown>
+            {value ? (
+              <div className="prose prose-sm max-w-none text-slate-700">
+                {/* Render a simple preview instead of a non-editable BlockNoteView */}
+                <div className="whitespace-pre-wrap">{renderSimplePreview(value)}</div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-[120px] text-slate-400">
@@ -138,7 +168,7 @@ export default function InlineNotesEditor({
         )}
       </div>
 
-      {!isEditing && localValue && (
+      {!isEditing && value && (
         <p className="text-xs text-slate-500 mt-2">
           Click anywhere in the note area to edit
         </p>

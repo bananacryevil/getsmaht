@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import "./App.css";
 import ReadingModal from './components/ReadingModal';
 import ExerciseModal from './components/ExerciseModal';
-import InlineNotesEditor from './components/InlineNotesEditor';
+import NotesPrompt from './components/NotesPrompt';
 import { parseReading } from './utils/readingMapper';
 import { initialCurriculum } from './data/curriculumData';
 
@@ -526,12 +526,11 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Notes - Inline Editor */}
-                    <InlineNotesEditor
+                    {/* Notes - Simplified Prompt */}
+                    <NotesPrompt
                       day={it.day}
                       title={it.title}
                       value={it.notes || ""}
-                      onChange={(notes) => updateNotes(it.day, notes)}
                       onPopOut={true}
                     />
 

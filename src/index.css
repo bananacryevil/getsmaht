@@ -12,3 +12,26 @@
 .animate-shimmer {
   animation: shimmer 2s infinite;
 }
+
+/* BlockNote editor - proper scroll containment */
+.bn-container {
+  max-height: 100%;
+  overflow-y: auto !important;
+}
+
+/* Fix side menu clipping */
+.bn-side-menu {
+  position: sticky !important;
+  left: 4px;
+  z-index: 100;
+}
+
+.bn-block-outer {
+  position: relative;
+  margin-left: 0 !important;
+}
+
+/* Ensure block content doesn't push side menu out */
+.bn-block-content {
+  margin-left: 0 !important;
+}
