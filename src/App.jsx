@@ -4,6 +4,7 @@ import ReadingModal from './components/ReadingModal';
 import ExerciseModal from './components/ExerciseModal';
 import NotesPrompt from './components/NotesPrompt';
 import NotesManager from './components/NotesManager';
+import DayDetailsModal from './components/DayDetailsModal';
 import { parseReading } from './utils/readingMapper';
 import { calcStreak, lastCompletionInfo, estimateDayMinutes, estimateRemainingMinutes, upcomingDeliverables } from './utils/metrics';
 import { initialCurriculum } from './data/curriculumData';
@@ -52,6 +53,8 @@ export default function App() {
   const [collapsedDays, setCollapsedDays] = useState(new Set());
   const collapsedInitRef = useRef(false);
   const [isNotesManagerOpen, setIsNotesManagerOpen] = useState(false);
+  const [isDayDetailsOpen, setIsDayDetailsOpen] = useState(false);
+  const [currentDayDetails, setCurrentDayDetails] = useState(null);
 
   const initialScrollDoneRef = useRef(false);
   const [pendingScroll, setPendingScroll] = useState(false);
@@ -354,13 +357,18 @@ export default function App() {
     });
   };
 
-  const expandAll = () => {
-    setCollapsedDays(new Set());
+  const openDayDetails = (day) => {
+    const item = items.find(i => i.day === day);
+    if (!item) return;
+    setCurrentDayDetails(item);
+    setIsDayDetailsOpen(true);
   };
 
-  const collapseAll = () => {
-    setCollapsedDays(new Set(items.map(i => i.day)));
+  const closeDayDetails = () => {
+    setIsDayDetailsOpen(false);
+    setCurrentDayDetails(null);
   };
+
 
   // Handle keyboard shortcuts and body scroll lock
   useEffect(() => {
@@ -372,13 +380,16 @@ export default function App() {
         if (isExerciseModalOpen) {
           closeExerciseModal();
         }
+        if (isDayDetailsOpen) {
+          closeDayDetails();
+        }
       }
     };
 
     document.addEventListener('keydown', handleKeyPress);
 
     // Lock body scroll when modal is open
-    if (isReadingModalOpen || isExerciseModalOpen) {
+    if (isReadingModalOpen || isExerciseModalOpen || isDayDetailsOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -388,7 +399,7 @@ export default function App() {
       document.removeEventListener('keydown', handleKeyPress);
       document.body.style.overflow = 'unset';
     };
-  }, [isReadingModalOpen, isExerciseModalOpen]);
+  }, [isReadingModalOpen, isExerciseModalOpen, isDayDetailsOpen]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -462,7 +473,7 @@ export default function App() {
 
       {/* Main Content */}
       <div ref={mainContentRef} className="max-w-7xl mx-auto px-6 py-4 pb-3">
-        {/* Filters, Global Collapse Controls & Search */}
+  {/* Filters & Search */}
         <div className="flex flex-col lg:flex-row gap-3 mb-4">
           <select
             value={filterWeek}
@@ -476,28 +487,7 @@ export default function App() {
             <option value="4">Week 4 - Mastery</option>
             <option value="5">Week 5 - Advanced Topics</option>
           </select>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={expandAll}
-              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-300 hover:bg-blue-50/50 text-slate-700 text-sm font-medium transition-colors"
-              title="Expand all days"
-            >
-              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v12m6-6H6" /></svg>
-              Expand All
-            </button>
-            <button
-              type="button"
-              onClick={collapseAll}
-              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-300 hover:bg-amber-50/50 text-slate-700 text-sm font-medium transition-colors"
-              title="Collapse all days"
-            >
-              <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 12H6" /></svg>
-              Collapse All
-            </button>
-          </div>
-
+          
           <div className="flex-1 relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -508,7 +498,7 @@ export default function App() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search curriculum..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm text-slate-800 placeholder-slate-400"
             />
           </div>
         </div>
@@ -565,25 +555,24 @@ export default function App() {
                             {it.completed ? 'Done' : 'Mark Done'}
                           </span>
                         </label>
-                        {/* TODO 1 */}
+                        {/* TODO 1 (STARTING ON LINE 568): Convert inline view to modal and use extend icon */}
                         <button
                           type="button"
-                          onClick={() => toggleDayCollapsed(it.day)}
-                          aria-expanded={!isCollapsed}
-                          aria-controls={`day-content-${it.day}`}
+                          onClick={() => openDayDetails(it.day)}
                           className="ml-1 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white/15 hover:bg-white/25 text-white shadow-sm backdrop-blur-sm transition-colors"
-                          title={isCollapsed ? 'Expand details' : 'Collapse details'}
+                          title="Open details"
                         >
-                          <svg className={`w-5 h-5 transition-transform ${isCollapsed ? 'rotate-0' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          {/* Extend icon (arrows pointing out) */}
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l6 6m10 6v4m0 0h-4m4 0l-6-6M8 20H4m0 0v-4m0 4l6-6m12-6V4m0 0h-4m4 0l-6 6" />
                           </svg>
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Collapsed Summary (High-level) */}
-                  {isCollapsed ? (
+                  {/* Collapsed Summary (High-level) - always show since details open in modal */}
+                  {true ? (
                     <div className="px-5 py-4">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-white/60">
@@ -609,146 +598,6 @@ export default function App() {
                     </div>
                   ) : null}
 
-                  {/* Day Content */}
-                  {!isCollapsed && (
-                    <div id={`day-content-${it.day}`} className="p-5 space-y-4">
-                      {/* Theory */}
-                      {it.theory && (
-                        <div className="bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-200/60 rounded-xl p-4">
-                          <div className="flex items-start gap-3">
-                            <svg className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6l7 4-7 4-7-4 7-4zm0 8l7-4v6l-7 4-7-4v-6l7 4z" />
-                            </svg>
-                            <div className="flex-1">
-                              <div className="text-xs font-bold text-indigo-900 mb-1">THEORY</div>
-                              <div className="text-sm text-indigo-900/90 whitespace-pre-line leading-relaxed">{it.theory}</div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {/* Learning Objective - Premium Badge */}
-                      {it.objective && (
-                        <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200/60 rounded-xl p-3">
-                          <div className="flex items-start gap-2">
-                            <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                            <div>
-                              <div className="text-xs font-bold text-amber-900 mb-1">LEARNING OBJECTIVE</div>
-                              <div className="text-sm text-amber-800 leading-relaxed">{it.objective}</div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Readings */}
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">📖 Readings</h4>
-                        <div className="space-y-2">
-                          {it.readings.map((reading, idx) => {
-                            const readingKey = `${it.day}-${idx}`;
-                            const isExpanded = expandedReadings.has(readingKey);
-                            const parsedReading = parseReading(reading);
-                            const isSupplemental = !parsedReading;
-                            // Only truncate supplemental readings, not PDF readings
-                            const shouldTruncate = isSupplemental && !isExpanded && reading.length > 60;
-
-                            return (
-                              <button
-                                key={idx}
-                                onClick={() => openReading(reading, it.day, idx)}
-                                className={`w-full text-left px-4 py-2.5 border rounded-xl transition-all group/reading ${isSupplemental
-                                    ? 'bg-amber-50 hover:bg-amber-100 border-amber-200 hover:border-amber-300'
-                                    : 'bg-slate-50 hover:bg-blue-50 border-slate-200 hover:border-blue-300'
-                                  }`}
-                              >
-                                <div className="flex items-start gap-3">
-                                  <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5 ${isSupplemental
-                                      ? 'bg-amber-100 text-amber-700'
-                                      : 'bg-blue-100 text-blue-600'
-                                    }`}>
-                                    {idx + 1}
-                                  </span>
-                                  <div className="flex-1">
-                                    <span className={`text-sm font-medium block ${isSupplemental
-                                        ? 'text-amber-900 group-hover/reading:text-amber-950'
-                                        : 'text-slate-700 group-hover/reading:text-blue-700'
-                                      }`}>
-                                      {shouldTruncate ? `${reading.substring(0, 60)}...` : reading}
-                                    </span>
-                                    {isSupplemental && (
-                                      <span className="text-xs text-amber-600 mt-1 block">
-                                        {isExpanded ? 'Click to collapse' : 'Click to expand'}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <svg className={`w-4 h-4 flex-shrink-0 mt-1 transition-all ${isSupplemental
-                                      ? 'text-amber-500 group-hover/reading:text-amber-600'
-                                      : 'text-slate-400 group-hover/reading:text-blue-500'
-                                    } ${isExpanded && isSupplemental ? 'rotate-90' : ''}`}
-                                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    {isSupplemental ? (
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isExpanded ? "M19 9l-7 7-7-7" : "M9 5l7 7-7 7"} />
-                                    ) : (
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    )}
-                                  </svg>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Exercises Button */}
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">💡 Exercises</h4>
-                        <button
-                          onClick={() => openExerciseModal(it.day, it.title, it.exercises)}
-                          className="w-full px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-200 flex items-center justify-center gap-2 group/btn"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          <span>View {it.exercises.length} {it.exercises.length === 1 ? 'Exercise' : 'Exercises'}</span>
-                          <svg className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                      </div>
-
-                      {/* Deliverable */}
-                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200/60 rounded-xl p-3">
-                        <div className="flex items-start gap-2">
-                          <svg className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <div>
-                            <div className="text-xs font-bold text-purple-900 mb-1">DELIVERABLE</div>
-                            <div className="text-sm text-purple-800">{it.deliverable || '—'}</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Notes - Simplified Prompt */}
-                      <NotesPrompt
-                        day={it.day}
-                        title={it.title}
-                        value={it.notes || ""}
-                        onPopOut={true}
-                      />
-
-                      {/* Completion Timestamp */}
-                      {it.completedAt && (
-                        <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200/60">
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          <span className="font-semibold">Completed {new Date(it.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -772,30 +621,30 @@ export default function App() {
                     <div className="text-sm text-slate-500 font-medium">Day {nextIncomplete.day}</div>
                     <div className="text-base font-bold text-slate-900">{nextIncomplete.title}</div>
                     <div className="text-xs text-slate-600">Approx {nextEstMin} min · {nextIncomplete.readings?.length || 0} readings · {nextIncomplete.exercises?.length || 0} exercises</div>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div className="justify-evenly flex gap-1">
+                      <button
+                        onClick={() => openDayDetails(nextIncomplete.day)}
+                        className="px-8 py-2 text-center bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold transition-colors"
+                      >
+                        Day
+                      </button>
                       {(nextIncomplete.readings?.length || 0) > 0 && (
                         <button
                           onClick={() => openReading(nextIncomplete.readings[0], nextIncomplete.day, 0)}
-                          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold"
+                          className="w-auto px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold"
                         >
-                          Open First Reading
+                          Reading
                         </button>
                       )}
                       {(nextIncomplete.exercises?.length || 0) > 0 && (
                         <button
                           onClick={() => openExerciseModal(nextIncomplete.day, nextIncomplete.title, nextIncomplete.exercises)}
-                          className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold"
+                          className="w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold"
                         >
-                          View Exercises
+                          Exercises
                         </button>
                       )}
                     </div>
-                    <button
-                      onClick={() => scrollToDay(nextIncomplete.day)}
-                      className="block mx-auto w-auto px-4 py-2 text-center bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold transition-colors"
-                    >
-                      Open Day →
-                    </button>
                   </>
                 ) : (
                   <div className="text-center py-4">
@@ -859,6 +708,22 @@ export default function App() {
         dayNumber={currentExercise?.day}
         title={currentExercise?.title}
         exercises={currentExercise?.exercises || []}
+      />
+
+      {/* Day Details Modal */}
+      <DayDetailsModal
+        isOpen={isDayDetailsOpen}
+        onClose={closeDayDetails}
+        dayItem={currentDayDetails}
+        onOpenReading={(readingText, day, idx) => {
+          // Close day details before opening reading for cleaner UX
+          closeDayDetails();
+          openReading(readingText, day, idx);
+        }}
+        onOpenExercises={(day, title, exercises) => {
+          closeDayDetails();
+          openExerciseModal(day, title, exercises);
+        }}
       />
 
       {isNotesManagerOpen && (

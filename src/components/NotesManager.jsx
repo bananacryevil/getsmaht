@@ -44,6 +44,25 @@ export default function NotesManager({ onClose, onNavigateToDay }) {
     };
   }, []);
 
+  // Close on Escape and lock body scroll while modal is open
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose?.();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    // Lock body scroll to mirror other modals
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
   const enriched = useMemo(() => items.map(it => {
     const text = noteToPlainText(it.notes || '');
     return {
@@ -117,8 +136,19 @@ export default function NotesManager({ onClose, onNavigateToDay }) {
     reader.readAsText(file);
   };
 
+  const handleBackdropMouseDown = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose?.();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/30 flex">
+    <div
+      className="fixed inset-0 z-50 bg-black/30 flex"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={handleBackdropMouseDown}
+    >
       <div className="m-auto w-[min(1100px,95vw)] h-[min(85vh,900px)] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
         <div className="px-5 py-4 border-b bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">

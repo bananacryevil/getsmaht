@@ -76,27 +76,6 @@ export default function NotesPrompt({ day, title, value, onPopOut }) {
           <span className="font-medium">You have notes for this day</span>
         </div>
       )}
-
-      {!hasNotes && (
-        <div className="mt-2 flex items-center gap-2 text-xs text-slate-600">
-          <button
-            type="button"
-            onClick={() => {
-              // Emit a custom event that App listens to (optional). If not handled, fall back to notes window.
-              const ev = new CustomEvent('open-notes-manager');
-              window.dispatchEvent(ev);
-              if (!window.__handledOpenNotesManager && window.electronAPI?.notes?.openWindow) {
-                window.electronAPI.notes.openWindow(day, title);
-              }
-            }}
-            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50"
-            title="Open Notes Manager"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-6 1h4m-4 4h4M9 9h6"/></svg>
-            <span>Manage all notes</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

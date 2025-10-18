@@ -17,6 +17,7 @@ const MIN_SCALE = 0.25;
 const MAX_SCALE = 5;
 const WHEEL_ZOOM_STEP = 1.06; // per wheel tick when ctrl is pressed
 const KEY_ZOOM_STEP = 1.15; // per key press zoom factor
+const SAVE_DEBOUNCE_MS = 150; // debounce for persisting prefs
 
 function isEditableElement(target) {
   if (!target) return false;
@@ -96,16 +97,6 @@ export default function NativePDFViewer({
   const [pageLabelsLoaded, setPageLabelsLoaded] = useState(false);
   const [restoredState, setRestoredState] = useState(false);
 
-  const storageKey = useMemo(() => {
-    // Use resolved source as key basis to persist per-document state
-    if (!pdfFile) return null;
-    try {
-      return `nativePdfViewer:${resolvePdfSource(pdfFile)}`;
-    } catch {
-      return `nativePdfViewer:${String(pdfFile)}`;
-    }
-  }, [pdfFile]);
-
   const resolvePdfSource = (input) => {
     if (!input) return null;
 
@@ -134,6 +125,45 @@ export default function NativePDFViewer({
     return normalized;
   };
 
+  const storageKeyInfo = useMemo(() => {
+    if (!pdfFile) return null;
+
+    const makeStableId = (input) => {
+      try {
+        const base = typeof window !== 'undefined' ? window.location.href : 'file:///';
+        const u = new URL(input, base);
+        let p = decodeURIComponent(u.pathname || '');
+        p = p.replace(/^\/(?=[A-Za-z]:\\)/, '');
+        p = p.replace(/\\/g, '/');
+        p = p.replace(/\/+/g, '/');
+        p = p.replace(/^([A-Za-z]):\//, (m, d) => `${d.toLowerCase()}:\/`);
+        return p || String(input);
+      } catch (_) {
+        try {
+          let s = String(input);
+          s = s.replace(/\\/g, '/');
+          s = s.replace(/\/+/g, '/');
+          s = s.replace(/^\.\//, '');
+          s = s.replace(/^([A-Za-z]):\//, (m, d) => `${d.toLowerCase()}:\/`);
+          return s;
+        } catch {
+          return String(input);
+        }
+      }
+    };
+
+    let resolved = null;
+    try { resolved = resolvePdfSource(pdfFile) || pdfFile; } catch { resolved = pdfFile; }
+    const stableId = makeStableId(resolved);
+    const newKey = `nativePdfViewer:v2:${stableId}`;
+
+    const legacyKeys = [];
+    try { legacyKeys.push(`nativePdfViewer:${resolvePdfSource(pdfFile)}`); } catch {}
+    legacyKeys.push(`nativePdfViewer:${String(pdfFile)}`);
+
+    return { newKey, legacyKeys };
+  }, [pdfFile]);
+
   useEffect(() => {
     let cancelled = false;
     let pdfInstance = null;
@@ -151,6 +181,27 @@ export default function NativePDFViewer({
       if (!pdfViewerRef.current) return;
       pdfViewerRef.current.currentScaleValue = 'page-actual';
       setCurrentScale(pdfViewerRef.current.currentScale);
+      // Restore saved zoom as soon as pages initialize (page restore handled elsewhere)
+      try {
+        if (storageKeyInfo) {
+          const { newKey, legacyKeys } = storageKeyInfo;
+          let raw = localStorage.getItem(newKey);
+          if (!raw) {
+            for (const k of legacyKeys) {
+              raw = localStorage.getItem(k);
+              if (raw) break;
+            }
+          }
+          if (raw) {
+            const data = JSON.parse(raw);
+            if (typeof data?.scale === 'number') {
+              const clamped = Math.min(Math.max(data.scale, MIN_SCALE), MAX_SCALE);
+              pdfViewerRef.current.currentScale = clamped;
+              setCurrentScale(pdfViewerRef.current.currentScale);
+            }
+          }
+        }
+      } catch {}
     };
   const handleScaleChange = ({ scale }) => setCurrentScale(scale);
 
@@ -448,6 +499,20 @@ export default function NativePDFViewer({
     setCurrentScale(pdfViewerRef.current.currentScale);
   };
 
+  const resetSavedPrefs = () => {
+    // Clear saved state for this PDF and reset zoom to 100%
+    try {
+      if (storageKeyInfo) {
+        const { newKey, legacyKeys } = storageKeyInfo;
+        try { if (newKey) localStorage.removeItem(newKey); } catch {}
+        for (const k of legacyKeys || []) {
+          try { localStorage.removeItem(k); } catch {}
+        }
+      }
+    } catch {}
+    actualSize();
+  };
+
   // Smooth, continuous zoom helpers
   const setZoom = (targetScale, anchor) => {
     if (!pdfViewerRef.current || !containerRef.current || !viewerRef.current) return;
@@ -627,46 +692,58 @@ export default function NativePDFViewer({
     };
   }, [currentPage, numPages]);
 
-  // Persist last page and zoom for this document
+  // Persist last page and zoom for this document (debounced)
   useEffect(() => {
-    if (!storageKey) return;
-    if (!pdfDocument) return;
-
+    if (!storageKeyInfo || !pdfDocument) return;
+    const { newKey } = storageKeyInfo;
     const data = { page: currentPage, scale: currentScale };
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(data));
-    } catch {}
-  }, [storageKey, pdfDocument, currentPage, currentScale]);
+    const id = setTimeout(() => {
+      try { localStorage.setItem(newKey, JSON.stringify(data)); } catch {}
+    }, SAVE_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [storageKeyInfo, pdfDocument, currentPage, currentScale]);
 
-  // Restore last page/scale when appropriate (no explicit navigation requested)
+  // Restore last page/scale using stable key with legacy migration
   useEffect(() => {
-    if (!storageKey) return;
+    if (!storageKeyInfo) return;
     if (!pdfDocument || !pdfViewerRef.current) return;
     if (restoredState) return;
-    // Only restore when autoNavigation has finished and no explicit reference provided
     if (!autoNavigationFinished) return;
-    if (reference || initialPageLabel) return;
 
     try {
-      const raw = localStorage.getItem(storageKey);
+      const { newKey, legacyKeys } = storageKeyInfo;
+      let raw = localStorage.getItem(newKey);
+      let fromLegacyKey = null;
+      if (!raw) {
+        for (const k of legacyKeys) {
+          raw = localStorage.getItem(k);
+          if (raw) { fromLegacyKey = k; break; }
+        }
+      }
       if (!raw) {
         setRestoredState(true);
         return;
       }
       const data = JSON.parse(raw);
-      if (typeof data?.page === 'number') {
+      if (!reference && !initialPageLabel && typeof data?.page === 'number') {
         goToPage(data.page);
       }
       if (typeof data?.scale === 'number') {
         pdfViewerRef.current.currentScale = Math.min(Math.max(data.scale, MIN_SCALE), MAX_SCALE);
         setCurrentScale(pdfViewerRef.current.currentScale);
       }
+      if (fromLegacyKey) {
+        try {
+          localStorage.setItem(newKey, raw);
+          localStorage.removeItem(fromLegacyKey);
+        } catch {}
+      }
     } catch {
       // ignore restore errors
     } finally {
       setRestoredState(true);
     }
-  }, [storageKey, pdfDocument, autoNavigationFinished, reference, initialPageLabel, restoredState]);
+  }, [storageKeyInfo, pdfDocument, autoNavigationFinished, reference, initialPageLabel, restoredState]);
 
   const onPageInputChange = (event) => {
     const { value } = event.target;
@@ -784,6 +861,14 @@ export default function NativePDFViewer({
                 title="Actual size 100% (Ctrl 0)"
               >
                 100%
+              </button>
+              <button
+                type="button"
+                onClick={resetSavedPrefs}
+                className="rounded-md border border-red-300 px-2 py-1 text-red-700 hover:bg-red-50"
+                title="Clear saved page & zoom preference for this PDF and reset to 100%"
+              >
+                Reset Pref
               </button>
             </div>
           </div>
