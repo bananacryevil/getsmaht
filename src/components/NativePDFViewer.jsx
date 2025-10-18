@@ -13,6 +13,18 @@ import 'pdfjs-dist/web/pdf_viewer.css';
 import './NativePDFViewer.css';
 
 const ZOOM_LEVELS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
+const MIN_SCALE = 0.25;
+const MAX_SCALE = 5;
+const WHEEL_ZOOM_STEP = 1.06; // per wheel tick when ctrl is pressed
+const KEY_ZOOM_STEP = 1.15; // per key press zoom factor
+
+function isEditableElement(target) {
+  if (!target) return false;
+  const tag = (target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+  const isContentEditable = !!target.isContentEditable;
+  return isContentEditable;
+}
 
 function OutlineTree({ outline, activeId, onNavigate }) {
   if (!outline.length) {
@@ -82,6 +94,17 @@ export default function NativePDFViewer({
   const [activeOutlineId, setActiveOutlineId] = useState(null);
   const [outlineLoaded, setOutlineLoaded] = useState(false);
   const [pageLabelsLoaded, setPageLabelsLoaded] = useState(false);
+  const [restoredState, setRestoredState] = useState(false);
+
+  const storageKey = useMemo(() => {
+    // Use resolved source as key basis to persist per-document state
+    if (!pdfFile) return null;
+    try {
+      return `nativePdfViewer:${resolvePdfSource(pdfFile)}`;
+    } catch {
+      return `nativePdfViewer:${String(pdfFile)}`;
+    }
+  }, [pdfFile]);
 
   const resolvePdfSource = (input) => {
     if (!input) return null;
@@ -129,7 +152,7 @@ export default function NativePDFViewer({
       pdfViewerRef.current.currentScaleValue = 'page-actual';
       setCurrentScale(pdfViewerRef.current.currentScale);
     };
-    const handleScaleChange = ({ scale }) => setCurrentScale(scale);
+  const handleScaleChange = ({ scale }) => setCurrentScale(scale);
 
     eventBus.on('pagechanging', handlePageChange);
     eventBus.on('pagesinit', handlePagesInit);
@@ -159,10 +182,11 @@ export default function NativePDFViewer({
     setOutlineTree([]);
     setPageLabels(null);
     setNumPages(null);
-    setAutoNavigationFinished(false);
+  setAutoNavigationFinished(false);
     setActiveOutlineId(null);
     setOutlineLoaded(false);
     setPageLabelsLoaded(false);
+  setRestoredState(false);
 
     const loadPdf = async () => {
       try {
@@ -225,7 +249,7 @@ export default function NativePDFViewer({
 
         pdfViewer.setDocument(pdf);
         linkService.setDocument(pdf, null);
-        setLoading(false);
+  setLoading(false);
 
         try {
           const outline = await pdf.getOutline();
@@ -424,6 +448,226 @@ export default function NativePDFViewer({
     setCurrentScale(pdfViewerRef.current.currentScale);
   };
 
+  // Smooth, continuous zoom helpers
+  const setZoom = (targetScale, anchor) => {
+    if (!pdfViewerRef.current || !containerRef.current || !viewerRef.current) return;
+    const clamped = Math.min(Math.max(targetScale, MIN_SCALE), MAX_SCALE);
+    const container = containerRef.current;
+    const viewer = viewerRef.current;
+    const prevScale = pdfViewerRef.current.currentScale || 1;
+
+    // Compute anchor defaults: center of container
+    const containerRect = container.getBoundingClientRect();
+    const viewerRect = viewer.getBoundingClientRect();
+    const anchorX = (anchor?.clientX ?? (containerRect.left + containerRect.width / 2));
+    const anchorY = (anchor?.clientY ?? (containerRect.top + containerRect.height / 2));
+
+    // Position within container
+    const dx = anchorX - containerRect.left;
+    const dy = anchorY - containerRect.top;
+
+    // Position within scroll content
+    const preContentX = container.scrollLeft + dx;
+    const preContentY = container.scrollTop + dy;
+
+    // Apply scale
+    pdfViewerRef.current.currentScale = clamped;
+    setCurrentScale(clamped);
+
+    // After layout, adjust scroll to keep anchor point stable
+    // Use rAF to ensure measurements are updated
+    requestAnimationFrame(() => {
+      const scaleRatio = (clamped / prevScale) || 1;
+      const postContentX = preContentX * scaleRatio;
+      const postContentY = preContentY * scaleRatio;
+      container.scrollLeft = Math.max(0, postContentX - dx);
+      container.scrollTop = Math.max(0, postContentY - dy);
+    });
+  };
+
+  const animatedZoomTo = (targetScale, anchor) => {
+    if (!pdfViewerRef.current) return;
+    const start = pdfViewerRef.current.currentScale || 1;
+    const end = Math.min(Math.max(targetScale, MIN_SCALE), MAX_SCALE);
+    const duration = 140;
+    const startTime = performance.now();
+
+    const easeInOut = (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
+
+    const step = (now) => {
+      const t = Math.min(1, (now - startTime) / duration);
+      const eased = easeInOut(t);
+      const scale = start + (end - start) * eased;
+      setZoom(scale, anchor);
+      if (t < 1) requestAnimationFrame(step);
+    };
+
+    requestAnimationFrame(step);
+  };
+
+  // Keyboard shortcuts and wheel zoom handlers
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    const handleWheel = (e) => {
+      if (!e.ctrlKey) return; // only hijack when Ctrl is pressed
+      e.preventDefault();
+      const current = pdfViewerRef.current?.currentScale || 1;
+      const delta = e.deltaY;
+      // Normalize: negative delta -> zoom in; positive -> out
+      const factor = delta < 0 ? WHEEL_ZOOM_STEP : 1 / WHEEL_ZOOM_STEP;
+      const target = current * factor;
+      setZoom(target, { clientX: e.clientX, clientY: e.clientY });
+    };
+
+    const handleKeyDown = (e) => {
+      // Avoid interfering with typing in inputs
+      if (isEditableElement(e.target)) return;
+
+      // Zoom controls
+      if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+        // Ctrl + 0: reset to 100%
+        if (e.key === '0') {
+          e.preventDefault();
+          animatedZoomTo(1);
+          return;
+        }
+        // Ctrl + '+' or '=' (US keyboards use '=' with shift for '+')
+        if (e.key === '+' || e.key === '=') {
+          e.preventDefault();
+          const current = pdfViewerRef.current?.currentScale || 1;
+          animatedZoomTo(current * KEY_ZOOM_STEP);
+          return;
+        }
+        // Ctrl + '-'
+        if (e.key === '-') {
+          e.preventDefault();
+          const current = pdfViewerRef.current?.currentScale || 1;
+          animatedZoomTo(current / KEY_ZOOM_STEP);
+          return;
+        }
+      }
+
+      // Page navigation with arrows
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          goToPage((currentPage || 1) - 1);
+          return;
+        }
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          goToPage((currentPage || 1) + 1);
+          return;
+        }
+        if (e.key === 'Home') {
+          e.preventDefault();
+          goToPage(1);
+          return;
+        }
+        if (e.key === 'End') {
+          e.preventDefault();
+          if (numPages) goToPage(numPages);
+          return;
+        }
+        if (e.key === ' ') {
+          // Space to scroll one viewport down, Shift+Space up
+          e.preventDefault();
+          const block = e.shiftKey ? -1 : 1;
+          container.scrollBy({ top: block * container.clientHeight * 0.9, behavior: 'smooth' });
+          return;
+        }
+        if (e.key === 'PageDown') {
+          e.preventDefault();
+          container.scrollBy({ top: container.clientHeight * 0.9, behavior: 'smooth' });
+          return;
+        }
+        if (e.key === 'PageUp') {
+          e.preventDefault();
+          container.scrollBy({ top: -container.clientHeight * 0.9, behavior: 'smooth' });
+          return;
+        }
+        // Fit toggles
+        if (e.key.toLowerCase() === 'f') {
+          e.preventDefault();
+          fitWidth();
+          return;
+        }
+        if (e.key.toLowerCase() === 'p') {
+          e.preventDefault();
+          fitPage();
+          return;
+        }
+        if (e.key.toLowerCase() === 't') {
+          e.preventDefault();
+          setTocOpen((open) => !open);
+          return;
+        }
+      }
+    };
+
+    const handleDoubleClick = (e) => {
+      // Double-click to zoom in; Shift + double-click to zoom out
+      if (isEditableElement(e.target)) return;
+      e.preventDefault();
+      const current = pdfViewerRef.current?.currentScale || 1;
+      const target = e.shiftKey ? current / KEY_ZOOM_STEP : current * KEY_ZOOM_STEP;
+      animatedZoomTo(target, { clientX: e.clientX, clientY: e.clientY });
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    container.addEventListener('dblclick', handleDoubleClick, { passive: false });
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
+      container.removeEventListener('dblclick', handleDoubleClick);
+    };
+  }, [currentPage, numPages]);
+
+  // Persist last page and zoom for this document
+  useEffect(() => {
+    if (!storageKey) return;
+    if (!pdfDocument) return;
+
+    const data = { page: currentPage, scale: currentScale };
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    } catch {}
+  }, [storageKey, pdfDocument, currentPage, currentScale]);
+
+  // Restore last page/scale when appropriate (no explicit navigation requested)
+  useEffect(() => {
+    if (!storageKey) return;
+    if (!pdfDocument || !pdfViewerRef.current) return;
+    if (restoredState) return;
+    // Only restore when autoNavigation has finished and no explicit reference provided
+    if (!autoNavigationFinished) return;
+    if (reference || initialPageLabel) return;
+
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) {
+        setRestoredState(true);
+        return;
+      }
+      const data = JSON.parse(raw);
+      if (typeof data?.page === 'number') {
+        goToPage(data.page);
+      }
+      if (typeof data?.scale === 'number') {
+        pdfViewerRef.current.currentScale = Math.min(Math.max(data.scale, MIN_SCALE), MAX_SCALE);
+        setCurrentScale(pdfViewerRef.current.currentScale);
+      }
+    } catch {
+      // ignore restore errors
+    } finally {
+      setRestoredState(true);
+    }
+  }, [storageKey, pdfDocument, autoNavigationFinished, reference, initialPageLabel, restoredState]);
+
   const onPageInputChange = (event) => {
     const { value } = event.target;
     const numeric = Number.parseInt(value, 10);
@@ -458,6 +702,7 @@ export default function NativePDFViewer({
               type="button"
               onClick={() => setTocOpen((open) => !open)}
               className="rounded-md border border-gray-300 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              title="Toggle table of contents (T)"
             >
               {tocOpen ? 'Hide TOC' : 'Show TOC'}
             </button>
@@ -467,6 +712,7 @@ export default function NativePDFViewer({
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage <= 1}
                 className="rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                title="Previous page (Left Arrow)"
               >
                 ←
               </button>
@@ -478,6 +724,7 @@ export default function NativePDFViewer({
                   value={currentPage}
                   onChange={onPageInputChange}
                   className="h-8 w-16 rounded-md border border-gray-300 px-2 text-center text-sm"
+                  title="Go to page (Enter number)"
                 />
                 <span className="text-xs text-gray-500">/ {numPages || '—'}</span>
               </div>
@@ -486,6 +733,7 @@ export default function NativePDFViewer({
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={numPages ? currentPage >= numPages : false}
                 className="rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                title="Next page (Right Arrow)"
               >
                 →
               </button>
@@ -498,6 +746,7 @@ export default function NativePDFViewer({
                 type="button"
                 onClick={zoomOut}
                 className="rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-700 hover:bg-gray-100"
+                title="Zoom out (Ctrl -)"
               >
                 −
               </button>
@@ -506,6 +755,7 @@ export default function NativePDFViewer({
                 type="button"
                 onClick={zoomIn}
                 className="rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-700 hover:bg-gray-100"
+                title="Zoom in (Ctrl +)"
               >
                 +
               </button>
@@ -515,6 +765,7 @@ export default function NativePDFViewer({
                 type="button"
                 onClick={fitWidth}
                 className="rounded-md border border-gray-300 px-2 py-1 hover:bg-gray-100"
+                title="Fit width (F)"
               >
                 Fit Width
               </button>
@@ -522,6 +773,7 @@ export default function NativePDFViewer({
                 type="button"
                 onClick={fitPage}
                 className="rounded-md border border-gray-300 px-2 py-1 hover:bg-gray-100"
+                title="Fit page (P)"
               >
                 Fit Page
               </button>
@@ -529,6 +781,7 @@ export default function NativePDFViewer({
                 type="button"
                 onClick={actualSize}
                 className="rounded-md border border-gray-300 px-2 py-1 hover:bg-gray-100"
+                title="Actual size 100% (Ctrl 0)"
               >
                 100%
               </button>
