@@ -79,40 +79,67 @@ function NotesWindow() {
             ]);
           }
         } else {
-          // Default placeholder content
+          // Default placeholder content: Structured template for studying complex topics
           setInitialContent([
-            {
-              type: "heading",
-              content: "Daily Notes",
-              props: { level: 2 },
-            },
-            {
-              type: "heading",
-              content: "Key Ideas",
-              props: { level: 3 },
-            },
-            {
-              type: "bulletListItem",
-              content: "",
-            },
-            {
-              type: "heading",
-              content: "Wins",
-              props: { level: 3 },
-            },
-            {
-              type: "bulletListItem",
-              content: "",
-            },
-            {
-              type: "heading",
-              content: "Follow-ups",
-              props: { level: 3 },
-            },
-            {
-              type: "bulletListItem",
-              content: "",
-            },
+            { type: "heading", content: "Topic & Scope", props: { level: 2 } },
+            { type: "paragraph", content: "What is the concept? Why is it hard? Boundaries and context." },
+
+            { type: "heading", content: "Learning Objectives", props: { level: 3 } },
+            { type: "checkListItem", content: "I can define the key terms.", props: { checked: false } },
+            { type: "checkListItem", content: "I can explain the intuition to a peer.", props: { checked: false } },
+            { type: "checkListItem", content: "I can work through a canonical example.", props: { checked: false } },
+            { type: "checkListItem", content: "I can identify edge cases and limitations.", props: { checked: false } },
+
+            { type: "heading", content: "Key Concepts", props: { level: 3 } },
+            { type: "bulletListItem", content: "" },
+            { type: "bulletListItem", content: "" },
+
+            { type: "heading", content: "Definitions & Notation", props: { level: 3 } },
+            { type: "bulletListItem", content: "" },
+            { type: "bulletListItem", content: "" },
+
+            { type: "heading", content: "Intuition / Mental Model", props: { level: 3 } },
+            { type: "paragraph", content: "Write a plain-language explanation, analogy, or visualization." },
+
+            { type: "heading", content: "Worked Example", props: { level: 3 } },
+            { type: "paragraph", content: "Outline the steps:" },
+            { type: "bulletListItem", content: "Given ..." },
+            { type: "bulletListItem", content: "When ..." },
+            { type: "bulletListItem", content: "Then ..." },
+            { type: "codeBlock", content: "// Pseudocode / math / commands" },
+
+            { type: "heading", content: "Derivation / Proof Sketch", props: { level: 3 } },
+            { type: "paragraph", content: "" },
+
+            { type: "heading", content: "Edge Cases & Counterexamples", props: { level: 3 } },
+            { type: "bulletListItem", content: "" },
+            { type: "bulletListItem", content: "" },
+
+            { type: "heading", content: "Complexity & Performance", props: { level: 3 } },
+            { type: "bulletListItem", content: "Time: " },
+            { type: "bulletListItem", content: "Space: " },
+
+            { type: "heading", content: "Patterns & Connections", props: { level: 3 } },
+            { type: "bulletListItem", content: "Related to ..." },
+            { type: "bulletListItem", content: "Use cases ..." },
+
+            { type: "heading", content: "Common Pitfalls", props: { level: 3 } },
+            { type: "bulletListItem", content: "" },
+
+            { type: "heading", content: "Open Questions", props: { level: 3 } },
+            { type: "bulletListItem", content: "" },
+
+            { type: "heading", content: "Summary (TL;DR)", props: { level: 3 } },
+            { type: "paragraph", content: "Key takeaway in 2–3 sentences." },
+
+            { type: "heading", content: "Next Steps", props: { level: 3 } },
+            { type: "checkListItem", content: "Practice problems", props: { checked: false } },
+            { type: "checkListItem", content: "Implement a small project", props: { checked: false } },
+            { type: "checkListItem", content: "Teach or summarize to someone else", props: { checked: false } },
+
+            { type: "heading", content: "References", props: { level: 3 } },
+            { type: "bulletListItem", content: "[link] ..." },
+            { type: "bulletListItem", content: "[paper/book] ..." },
           ]);
         }
       }
